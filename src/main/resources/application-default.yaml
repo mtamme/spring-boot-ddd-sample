@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: task-management
+  datasource:
+    url: jdbc:h2:mem:task-management;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    table: schema_history
+  h2:
+    console:
+      enabled: true
+  integration:
+    jdbc:
+      initialize-schema: never
+  jpa:
+    mapping-resources:
+      - META-INF/domain/collaborator.orm.xml
+      - META-INF/domain/project.orm.xml
+      - META-INF/domain/task.orm.xml
+      - META-INF/domain/super-types.orm.xml
+      - META-INF/query/project.orm.xml
+      - META-INF/query/task.orm.xml
+      - META-INF/outbox.orm.xml
+    hibernate:
+      ddl-auto: none
+
+springdoc:
+  swagger-ui:
+    default-models-expand-depth: -1
+    display-operation-id: true
+    display-request-duration: true
+    urls-primary-name: Task Management API
+    urls:
+      - name: Task Management API
+        url: /task-management-openapi.yaml
+      - name: Outbox API
+        url: /outbox-openapi.yaml
+
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: DEBUG
+      springframework:
+        jdbc:
+          core: TRACE
+
+outbox:
+  enabled: true
+  poll-interval: PT1S
+  max-requeue-count: 3
+  max-peek-count: 100
+  initial-requeue-delay: PT5S

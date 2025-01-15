@@ -1,0 +1,195 @@
+openapi: '3.0.0'
+
+info:
+  title: Outbox API
+  description: Outbox API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Outbox
+    description: Outbox operations
+
+paths:
+  /outbox/messages/{message_id}:
+    get:
+      summary: Peek a message
+      operationId: peekMessage
+      tags:
+        - Outbox
+      parameters:
+        - in: path
+          name: message_id
+          description: Message ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/MessageId"
+      responses:
+        200:
+          description: Message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      summary: Dequeue a message
+      operationId: dequeueMessage
+      tags:
+        - Outbox
+      parameters:
+        - in: path
+          name: message_id
+          description: Message ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/MessageId"
+      responses:
+        204:
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Problem'
+    put:
+      summary: Requeue a message
+      operationId: requeueMessage
+      tags:
+        - Outbox
+      parameters:
+        - in: path
+          name: message_id
+          description: Message ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/MessageId"
+      responses:
+        204:
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /outbox/messages:
+    get:
+      summary: Peek messages
+      operationId: peekMessages
+      tags:
+        - Outbox
+      parameters:
+        - in: query
+          name: offset
+          description: Offset
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: Peek messages response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeekMessagesResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+components:
+  schemas:
+    PeekMessagesResponse:
+      type: object
+      description: Peek messages response
+      required:
+        - messages
+      properties:
+        messages:
+          items:
+            $ref: '#/components/schemas/Message'
+
+    Message:
+      type: object
+      description: Message
+      required:
+        - messageId
+        - correlationId
+        - type
+        - enqueuedAt
+        - scheduledAt
+        - delay
+        - requeueCount
+      properties:
+        messageId:
+          $ref: "#/components/schemas/MessageId"
+        correlationId:
+          type: string
+        type:
+          type: string
+        enqueuedAt:
+          type: string
+          format: date-time
+        scheduledAt:
+          type: string
+          format: date-time
+        delay:
+          type: string
+          format: duration
+        requeueCount:
+          type: integer
+          format: int32
+
+    MessageId:
+      type: string
+      format: uuid
+      description: Message ID
+
+    ProblemResponse:
+      type: object
+      description: Problem response
+      required:
+        - type
+        - title
+        - status
+        - instance
+      properties:
+        type:
+          type: string
+          format: uri
+          example: urn:not-found
+        title:
+          type: string
+          example: Not Found
+        status:
+          type: integer
+          format: int32
+          minimum: 100
+          maximum: 600
+          exclusiveMaximum: true
+          example: 404
+        detail:
+          type: string
+          example: Resource not found
+        instance:
+          type: string
+          format: uri
+          example: /resource
+
+  responses:
+    Problem:
+      description: Problem
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemResponse'
+
+    NoContent:
+      description: No content

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm" version="3.0">
+  <package>com.github.task.management.domain.task</package>
+  <access>FIELD</access>
+  <sequence-generator name="Task" sequence-name="task_s"/>
+  <entity class="Task">
+    <table name="task"/>
+    <attributes>
+      <id name="id">
+        <column name="id" updatable="false"/>
+        <generated-value strategy="SEQUENCE" generator="Task"/>
+      </id>
+      <basic name="status">
+        <column name="status"/>
+        <enumerated>STRING</enumerated>
+      </basic>
+      <basic name="openedAt">
+        <column name="opened_at" updatable="false"/>
+      </basic>
+      <basic name="startedAt">
+        <column name="started_at"/>
+      </basic>
+      <basic name="closedAt">
+        <column name="closed_at"/>
+      </basic>
+      <basic name="summary">
+        <column name="summary"/>
+      </basic>
+      <basic name="description">
+        <column name="description"/>
+      </basic>
+      <embedded name="projectId">
+        <attribute-override name="value">
+          <column name="project_id" updatable="false"/>
+        </attribute-override>
+      </embedded>
+      <embedded name="taskId">
+        <attribute-override name="value">
+          <column name="task_id" updatable="false"/>
+        </attribute-override>
+      </embedded>
+      <embedded name="assignee">
+        <attribute-override name="name">
+          <column name="assignee_name"/>
+        </attribute-override>
+      </embedded>
+    </attributes>
+  </entity>
+  <embeddable class="TaskId"/>
+</entity-mappings>

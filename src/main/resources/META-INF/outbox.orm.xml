@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm" version="3.0">
+  <access>FIELD</access>
+  <named-native-query name="Message.count" result-class="java.lang.Integer">
+    <query>
+      <![CDATA[
+        SELECT
+          COUNT(*)
+        FROM
+          outbox_message AS om
+        WHERE
+          om.scheduled_at <= :scheduled_at AND
+          om.requeue_count >= :min_requeue_count AND
+          om.requeue_count <= :max_requeue_count
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.find" result-set-mapping="Message">
+    <query>
+      <![CDATA[
+        SELECT
+          om.message_id,
+          om.correlation_id,
+          om.type,
+          om.enqueued_at,
+          om.scheduled_at,
+          om.requeue_count,
+          om.payload
+        FROM
+          outbox_message AS om
+        WHERE
+          om.message_id = :message_id
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.findAll" result-set-mapping="Message">
+    <query>
+      <![CDATA[
+        SELECT
+          om.message_id,
+          om.correlation_id,
+          om.type,
+          om.enqueued_at,
+          om.scheduled_at,
+          om.requeue_count,
+          om.payload
+        FROM
+          outbox_message AS om
+        WHERE
+          om.scheduled_at <= :scheduled_at AND
+          om.requeue_count >= :min_requeue_count AND
+          om.requeue_count <= :max_requeue_count
+        ORDER BY
+          om.enqueued_at ASC
+        LIMIT
+          :limit
+        OFFSET
+          :offset
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.delete">
+    <query>
+      <![CDATA[
+        DELETE
+        FROM
+          outbox_message AS om
+        WHERE
+          om.message_id = :message_id
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.update">
+    <query>
+      <![CDATA[
+        UPDATE
+          outbox_message AS om
+        SET
+          scheduled_at = :scheduled_at,
+          requeue_count = :requeue_count
+        WHERE
+          om.message_id = :message_id
+      ]]>
+    </query>
+  </named-native-query>
+  <sql-result-set-mapping name="Message">
+    <entity-result entity-class="com.github.seedwork.infrastructure.outbox.Message">
+      <field-result name="messageId" column="message_id"/>
+      <field-result name="correlationId" column="correlation_id"/>
+      <field-result name="type" column="type"/>
+      <field-result name="enqueuedAt" column="enqueued_at"/>
+      <field-result name="scheduledAt" column="scheduled_at"/>
+      <field-result name="requeueCount" column="requeue_count"/>
+      <field-result name="payload" column="payload"/>
+    </entity-result>
+  </sql-result-set-mapping>
+  <entity class="com.github.seedwork.infrastructure.outbox.Message">
+    <table name="outbox_message"/>
+    <attributes>
+      <id name="messageId">
+        <column name="message_id" updatable="false"/>
+      </id>
+      <basic name="correlationId">
+        <column name="correlation_id" updatable="false"/>
+      </basic>
+      <basic name="type">
+        <column name="type" updatable="false"/>
+      </basic>
+      <basic name="enqueuedAt">
+        <column name="enqueued_at" updatable="false"/>
+      </basic>
+      <basic name="scheduledAt">
+        <column name="scheduled_at" updatable="false"/>
+      </basic>
+      <basic name="requeueCount">
+        <column name="requeue_count" updatable="false"/>
+      </basic>
+      <basic name="payload">
+        <column name="payload" updatable="false"/>
+      </basic>
+    </attributes>
+  </entity>
+</entity-mappings>
