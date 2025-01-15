@@ -1,0 +1,638 @@
+openapi: '3.0.0'
+
+info:
+  title: Task Management API
+  description: Task Management API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Project
+    description: Project operations
+  - name: Task
+    description: Task operations
+
+paths:
+  /projects/{project_id}:
+    get:
+      summary: Get a project
+      operationId: getProject
+      tags:
+        - Project
+      parameters:
+        - in: path
+          name: project_id
+          description: Project ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/ProjectId"
+      responses:
+        200:
+          description: Get project response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetProjectResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /projects:
+    get:
+      summary: List all projects
+      operationId: listProjects
+      tags:
+        - Project
+      parameters:
+        - in: query
+          name: offset
+          description: Offset
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: List projects response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProjectsResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+    post:
+      summary: Define a project
+      operationId: defineProject
+      tags:
+        - Project
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefineProjectRequest'
+      responses:
+        201:
+          description: Define project response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefineProjectResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /archived-projects/{project_id}:
+    put:
+      summary: Archive a project
+      operationId: archiveProject
+      tags:
+        - Project
+      parameters:
+        - in: path
+          name: project_id
+          description: Project ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/ProjectId"
+      responses:
+        204:
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      summary: Unarchive a project
+      operationId: unarchiveProject
+      tags:
+        - Project
+      parameters:
+        - in: path
+          name: project_id
+          description: Project ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/ProjectId"
+      responses:
+        204:
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /search/projects:
+    get:
+      summary: Search all projects
+      operationId: searchProjects
+      tags:
+        - Project
+      parameters:
+        - in: query
+          name: q
+          description: Query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 20
+        - in: query
+          name: offset
+          description: Offset
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: Search projects response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchProjectsResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /tasks/{task_id}:
+    get:
+      summary: Get a task
+      operationId: getTask
+      tags:
+        - Task
+      parameters:
+        - in: path
+          name: task_id
+          description: Task ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/TaskId"
+      responses:
+        200:
+          description: Get task response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTaskResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /tasks:
+    get:
+      summary: List all tasks
+      operationId: listTasks
+      tags:
+        - Task
+      parameters:
+        - in: query
+          name: offset
+          description: Offset
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: List tasks response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTasksResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /projects/{project_id}/tasks:
+    post:
+      summary: Open a task
+      operationId: openTask
+      tags:
+        - Task
+      parameters:
+        - in: path
+          name: project_id
+          description: Project ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/ProjectId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenTaskRequest'
+      responses:
+        201:
+          description: Open task response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenTaskResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /tasks/{task_id}/assignees/{assignee_name}:
+    put:
+      summary: Assign a task
+      operationId: assignTask
+      tags:
+        - Task
+      parameters:
+        - in: path
+          name: task_id
+          description: Task ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/TaskId"
+        - in: path
+          name: assignee_name
+          description: Assignee name
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      summary: Unassign a task
+      operationId: unassignTask
+      tags:
+        - Task
+      parameters:
+        - in: path
+          name: task_id
+          description: Task ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/TaskId"
+        - in: path
+          name: assignee_name
+          description: Assignee name
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /started-tasks/{task_id}:
+    put:
+      summary: Start a task
+      operationId: startTask
+      tags:
+        - Task
+      parameters:
+        - in: path
+          name: task_id
+          description: Task ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/TaskId"
+      responses:
+        204:
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /closed-tasks/{task_id}:
+    put:
+      summary: Close a task
+      operationId: closeTask
+      tags:
+        - Task
+      parameters:
+        - in: path
+          name: task_id
+          description: Task ID
+          required: true
+          schema:
+            $ref: "#/components/schemas/TaskId"
+      responses:
+        204:
+          $ref: '#/components/responses/NoContent'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /search/tasks:
+    get:
+      summary: Search all tasks
+      operationId: searchTasks
+      tags:
+        - Task
+      parameters:
+        - in: query
+          name: q
+          description: Query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 20
+        - in: query
+          name: offset
+          description: Offset
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: Search tasks response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchTasksResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+components:
+  schemas:
+    GetProjectResponse:
+      type: object
+      description: Get project response
+      required:
+        - projectId
+        - archived
+        - name
+        - description
+      properties:
+        projectId:
+          $ref: "#/components/schemas/ProjectId"
+        archived:
+          type: boolean
+        name:
+          type: string
+        description:
+          type: string
+
+    ListProjectsResponse:
+      type: object
+      description: List projects response
+      required:
+        - projects
+      properties:
+        projects:
+          items:
+            $ref: '#/components/schemas/ProjectSummary'
+
+    SearchProjectsResponse:
+      type: object
+      description: List projects response
+      required:
+        - projects
+      properties:
+        projects:
+          items:
+            $ref: '#/components/schemas/ProjectSummary'
+
+    ProjectSummary:
+      type: object
+      description: Project summary
+      required:
+        - projectId
+        - archived
+        - name
+      properties:
+        projectId:
+          $ref: "#/components/schemas/ProjectId"
+        archived:
+          type: boolean
+        name:
+          type: string
+
+    DefineProjectRequest:
+      type: object
+      description: Define project request
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+
+    DefineProjectResponse:
+      type: object
+      description: Define project response
+      properties:
+        projectId:
+          $ref: "#/components/schemas/ProjectId"
+
+    ProjectId:
+      type: string
+      pattern: "[A-Za-z0-9_-]{11}"
+      description: Project ID
+
+    GetTaskResponse:
+      type: object
+      description: Get task response
+      required:
+        - projectId
+        - taskId
+        - status
+        - openedAt
+        - summary
+        - description
+      properties:
+        taskId:
+          $ref: "#/components/schemas/TaskId"
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        openedAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+        summary:
+          type: string
+        description:
+          type: string
+        assignee:
+          $ref: '#/components/schemas/TaskAssignee'
+        project:
+          $ref: '#/components/schemas/TaskProject'
+
+    TaskAssignee:
+      type: object
+      description: Task assignee
+      required:
+        - name
+      properties:
+        name:
+          type: string
+
+    TaskProject:
+      type: object
+      description: Task project
+      required:
+        - projectId
+        - name
+      properties:
+        projectId:
+          $ref: "#/components/schemas/ProjectId"
+        name:
+          type: string
+
+    ListTasksResponse:
+      type: object
+      description: List tasks response
+      required:
+        - tasks
+      properties:
+        tasks:
+          items:
+            $ref: '#/components/schemas/TaskSummary'
+
+    SearchTasksResponse:
+      type: object
+      description: Search tasks response
+      required:
+        - tasks
+      properties:
+        tasks:
+          items:
+            $ref: '#/components/schemas/TaskSummary'
+
+    TaskSummary:
+      type: object
+      description: Task summary
+      required:
+        - taskId
+        - status
+        - summary
+        - project
+      properties:
+        taskId:
+          $ref: "#/components/schemas/TaskId"
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        summary:
+          type: string
+        assignee:
+          $ref: "#/components/schemas/TaskAssignee"
+        project:
+          $ref: "#/components/schemas/TaskProject"
+
+    OpenTaskRequest:
+      type: object
+      description: Open task request
+      required:
+        - summary
+        - description
+      properties:
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+
+    OpenTaskResponse:
+      type: object
+      description: Open task response
+      properties:
+        taskId:
+          $ref: "#/components/schemas/TaskId"
+
+    TaskStatus:
+      type: string
+      description: Task status
+      x-extensible-enum:
+        - OPENED
+        - STARTED
+        - CLOSED
+
+    TaskId:
+      type: string
+      pattern: "[A-Za-z0-9_-]{11}"
+      description: Task ID
+
+    ProblemResponse:
+      type: object
+      description: Problem response
+      required:
+        - type
+        - title
+        - status
+        - instance
+      properties:
+        type:
+          type: string
+          format: uri
+          example: urn:not-found
+        title:
+          type: string
+          example: Not Found
+        status:
+          type: integer
+          format: int32
+          minimum: 100
+          maximum: 600
+          exclusiveMaximum: true
+          example: 404
+        detail:
+          type: string
+          example: Resource not found
+        instance:
+          type: string
+          format: uri
+          example: /resource
+
+  responses:
+    Problem:
+      description: Problem
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemResponse'
+
+    NoContent:
+      description: No content

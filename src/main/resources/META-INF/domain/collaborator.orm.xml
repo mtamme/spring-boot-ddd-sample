@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm" version="3.0">
+  <package>com.github.task.management.domain.collaborator</package>
+  <access>FIELD</access>
+  <mapped-superclass class="Collaborator"/>
+  <embeddable class="Assignee"/>
+</entity-mappings>
