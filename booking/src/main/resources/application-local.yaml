@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:booking;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    default-models-expand-depth: -1
+    urls-primary-name: Booking API
+    urls:
+      - name: Booking API
+        url: /booking-openapi.yaml
+      - name: Outbox API
+        url: /outbox-openapi.yaml
+
+logging:
+  level:
+    com.github.seedwork.infrastructure.outbox: debug
+    org.hibernate.SQL: info

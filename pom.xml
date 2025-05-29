@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.0.4</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.github</groupId>
+  <artifactId>spring-boot-ddd-sample</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <properties>
+    <java.version>25</java.version>
+    <springdoc.version>3.0.2</springdoc.version>
+    <swagger.version>2.2.45</swagger.version>
+    <archunit.version>1.4.1</archunit.version>
+    <openapi-generator-maven-plugin.version>7.21.0</openapi-generator-maven-plugin.version>
+  </properties>
+
+  <modules>
+    <module>booking</module>
+    <module>seedwork</module>
+  </modules>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- Springdoc -->
+      <dependency>
+        <groupId>org.springdoc</groupId>
+        <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        <version>${springdoc.version}</version>
+      </dependency>
+
+      <!-- Swagger -->
+      <dependency>
+        <groupId>io.swagger.core.v3</groupId>
+        <artifactId>swagger-annotations</artifactId>
+        <version>${swagger.version}</version>
+      </dependency>
+
+      <!-- Test -->
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit</artifactId>
+        <version>${archunit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5</artifactId>
+        <version>${archunit.version}</version>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <configuration>
+            <argLine>
+              -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
+              -Xshare:off
+            </argLine>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.openapitools</groupId>
+          <artifactId>openapi-generator-maven-plugin</artifactId>
+          <version>${openapi-generator-maven-plugin.version}</version>
+          <configuration>
+            <generatorName>spring</generatorName>
+            <library>spring-boot</library>
+            <apiNameSuffix>Operations</apiNameSuffix>
+            <generateSupportingFiles>false</generateSupportingFiles>
+            <skipOperationExample>true</skipOperationExample>
+            <configOptions>
+              <interfaceOnly>true</interfaceOnly>
+              <openApiNullable>false</openApiNullable>
+              <useJakartaEe>true</useJakartaEe>
+              <useTags>true</useTags>
+            </configOptions>
+            <importMappings>
+              <importMapping>java.time.OffsetDateTime=java.time.Instant</importMapping>
+            </importMappings>
+            <typeMappings>
+              <typeMapping>OffsetDateTime=Instant</typeMapping>
+            </typeMappings>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

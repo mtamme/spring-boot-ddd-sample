@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm" version="3.2">
+  <package>com.github.booking.domain.movie</package>
+  <access>FIELD</access>
+  <embeddable class="Movie">
+    <attributes>
+      <basic name="title"/>
+      <embedded name="movieId"/>
+    </attributes>
+  </embeddable>
+  <embeddable class="MovieId">
+    <attributes>
+      <basic name="value"/>
+    </attributes>
+  </embeddable>
+</entity-mappings>

@@ -1,0 +1,6 @@
+com.github.seedwork.infrastructure.outbox.OutboxAutoConfiguration
+com.github.seedwork.infrastructure.persistence.outbox.JpaOutboxAutoConfiguration
+com.github.seedwork.infrastructure.persistence.repository.JpaAggregateRootSupportAutoConfiguration
+com.github.seedwork.infrastructure.time.ClockAutoConfiguration
+com.github.seedwork.infrastructure.web.outbox.WebOutboxAutoConfiguration
+com.github.seedwork.infrastructure.web.WebProblemDetailAutoConfiguration
