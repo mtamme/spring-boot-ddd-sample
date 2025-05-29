@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm" version="3.0">
+  <access>FIELD</access>
+  <sequence-generator name="Message.sequenceNumber" sequence-name="outbox_message_sequence_number_s"/>
+  <named-native-query name="Message.count" result-set-mapping="MessageCounts">
+    <query>
+      <![CDATA[
+        SELECT
+          COUNT(*) FILTER (WHERE om.available_at <= :counted_at AND om.delivery_count < :max_delivery_count) AS deliverable_count,
+          COUNT(*) FILTER (WHERE om.available_at > :counted_at AND om.delivery_count < :max_delivery_count) AS deliverable_locked_count,
+          COUNT(*) FILTER (WHERE om.available_at <= :counted_at AND om.delivery_count >= :max_delivery_count) AS undeliverable_count,
+          COUNT(*) FILTER (WHERE om.available_at > :counted_at AND om.delivery_count >= :max_delivery_count) AS undeliverable_locked_count
+        FROM
+          outbox_message AS om
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.peek" result-set-mapping="Message">
+    <query>
+      <![CDATA[
+        SELECT
+          om.sequence_number,
+          om.group_id,
+          om.enqueued_at,
+          om.available_at,
+          om.lock_id,
+          om.delivery_count,
+          om.subject,
+          om.body
+        FROM
+          outbox_message AS om
+        WHERE
+          om.sequence_number = :sequence_number
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.peekAll" result-set-mapping="Message">
+    <query>
+      <![CDATA[
+        SELECT
+          om.sequence_number,
+          om.group_id,
+          om.enqueued_at,
+          om.available_at,
+          om.lock_id,
+          om.delivery_count,
+          om.subject,
+          om.body
+        FROM
+          outbox_message AS om
+        ORDER BY
+          om.sequence_number ASC
+        OFFSET :offset
+        FETCH NEXT :limit ROWS ONLY
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.lockAllDeliverable">
+    <query>
+      <![CDATA[
+        UPDATE
+          outbox_message
+        SET
+          available_at = :available_at,
+          lock_id = :lock_id,
+          delivery_count = delivery_count + 1
+        WHERE
+          sequence_number IN (
+            SELECT
+              om.sequence_number
+            FROM
+              outbox_message AS om
+            WHERE
+              om.available_at <= :locked_at AND
+              om.delivery_count < :max_delivery_count AND
+              NOT EXISTS (
+                SELECT
+                  1
+                FROM
+                  outbox_message
+                WHERE
+                  group_id = om.group_id AND (
+                    available_at > :locked_at OR
+                    delivery_count >= :max_delivery_count))
+            ORDER BY
+              om.sequence_number ASC
+            FETCH FIRST :limit ROWS ONLY)
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.lockAllUndeliverable">
+    <query>
+      <![CDATA[
+        UPDATE
+          outbox_message
+        SET
+          available_at = :available_at,
+          lock_id = :lock_id
+        WHERE
+          sequence_number IN (
+            SELECT
+              om.sequence_number
+            FROM
+              outbox_message AS om
+            WHERE
+              om.available_at <= :locked_at AND
+              om.delivery_count >= :max_delivery_count AND
+              NOT EXISTS (
+                SELECT
+                  1
+                FROM
+                  outbox_message
+                WHERE
+                  group_id = om.group_id AND
+                  available_at > :locked_at)
+            ORDER BY
+              om.sequence_number ASC
+            FETCH FIRST :limit ROWS ONLY)
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.peekAllLocked" result-set-mapping="Message">
+    <query>
+      <![CDATA[
+        SELECT
+          om.sequence_number,
+          om.group_id,
+          om.enqueued_at,
+          om.available_at,
+          om.lock_id,
+          om.delivery_count,
+          om.subject,
+          om.body
+        FROM
+          outbox_message AS om
+        WHERE
+          om.available_at > :peeked_at AND
+          om.lock_id = :lock_id
+        ORDER BY
+          om.sequence_number ASC
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.requeueLocked">
+    <query>
+      <![CDATA[
+        UPDATE
+          outbox_message AS om
+        SET
+          available_at = :requeued_at,
+          lock_id = NULL,
+          delivery_count = 0
+        WHERE
+          om.sequence_number = :sequence_number AND
+          om.available_at > :requeued_at AND
+          om.lock_id = :lock_id
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.requeueAllLocked">
+    <query>
+      <![CDATA[
+        UPDATE
+          outbox_message AS om
+        SET
+          available_at = :requeued_at,
+          lock_id = NULL,
+          delivery_count = 0
+        WHERE
+          om.sequence_number IN (:sequence_numbers) AND
+          om.available_at > :requeued_at AND
+          om.lock_id = :lock_id
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.dequeueLocked">
+    <query>
+      <![CDATA[
+        DELETE
+        FROM
+          outbox_message AS om
+        WHERE
+          om.sequence_number = :sequence_number AND
+          om.available_at > :dequeued_at AND
+          om.lock_id = :lock_id
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="Message.dequeueAllLocked">
+    <query>
+      <![CDATA[
+        DELETE
+        FROM
+          outbox_message AS om
+        WHERE
+          om.sequence_number IN (:sequence_numbers) AND
+          om.lock_id = :lock_id AND
+          om.available_at > :dequeued_at
+      ]]>
+    </query>
+  </named-native-query>
+  <sql-result-set-mapping name="Message">
+    <entity-result entity-class="com.github.seedwork.infrastructure.outbox.Message">
+      <field-result name="sequenceNumber" column="sequence_number"/>
+      <field-result name="groupId" column="group_id"/>
+      <field-result name="enqueuedAt" column="enqueued_at"/>
+      <field-result name="availableAt" column="available_at"/>
+      <field-result name="lockId" column="lock_id"/>
+      <field-result name="deliveryCount" column="delivery_count"/>
+      <field-result name="subject" column="subject"/>
+      <field-result name="body" column="body"/>
+    </entity-result>
+  </sql-result-set-mapping>
+  <sql-result-set-mapping name="MessageCounts">
+    <constructor-result target-class="com.github.seedwork.infrastructure.outbox.MessageCounts">
+      <column name="deliverable_count" class="java.lang.Integer"/>
+      <column name="deliverable_locked_count" class="java.lang.Integer"/>
+      <column name="undeliverable_count" class="java.lang.Integer"/>
+      <column name="undeliverable_locked_count" class="java.lang.Integer"/>
+    </constructor-result>
+  </sql-result-set-mapping>
+  <entity class="com.github.seedwork.infrastructure.outbox.Message">
+    <table name="outbox_message"/>
+    <attributes>
+      <id name="sequenceNumber">
+        <column name="sequence_number" updatable="false"/>
+        <generated-value strategy="SEQUENCE" generator="Message.sequenceNumber"/>
+      </id>
+      <basic name="groupId">
+        <column name="group_id" updatable="false"/>
+      </basic>
+      <basic name="enqueuedAt">
+        <column name="enqueued_at" updatable="false"/>
+      </basic>
+      <basic name="availableAt">
+        <column name="available_at" updatable="false"/>
+      </basic>
+      <basic name="lockId">
+        <column name="lock_id" updatable="false"/>
+      </basic>
+      <basic name="deliveryCount">
+        <column name="delivery_count" updatable="false"/>
+      </basic>
+      <basic name="subject">
+        <column name="subject" updatable="false"/>
+      </basic>
+      <basic name="body">
+        <column name="body" updatable="false"/>
+      </basic>
+    </attributes>
+  </entity>
+</entity-mappings>
