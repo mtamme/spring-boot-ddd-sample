@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm" version="3.2">
+  <named-native-query name="ShowDetailView.getShow" result-set-mapping="ShowDetailView">
+    <query>
+      <![CDATA[
+        SELECT
+          s.show_id,
+          s.scheduled_at,
+          s.movie_id,
+          s.movie_title,
+          s.hall_id,
+          s.hall_name
+        FROM
+          show AS s
+        WHERE
+          s.show_id = :show_id
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="ShowSummaryView.listShows" result-set-mapping="ShowSummaryView">
+    <query>
+      <![CDATA[
+        SELECT
+          s.show_id,
+          s.scheduled_at,
+          s.movie_id,
+          s.movie_title,
+          s.hall_id,
+          s.hall_name
+        FROM
+          show AS s
+        ORDER BY
+          s.id_ ASC
+        OFFSET :offset
+        FETCH NEXT :limit ROWS ONLY
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="ShowSummaryView.searchShows" result-set-mapping="ShowSummaryView">
+    <query>
+      <![CDATA[
+        SELECT
+          s.show_id,
+          s.scheduled_at,
+          s.movie_id,
+          s.movie_title,
+          s.hall_id,
+          s.hall_name
+        FROM
+          show AS s
+        WHERE
+          LOWER(s.movie_title) LIKE :filter_pattern OR
+          LOWER(s.hall_name) LIKE :filter_pattern
+        ORDER BY
+          CASE
+            WHEN LOWER(s.movie_title) LIKE :sort_pattern THEN 0
+            WHEN LOWER(s.hall_name) LIKE :sort_pattern THEN 1
+            ELSE 2
+          END ASC,
+          s.movie_title ASC
+        OFFSET :offset
+        FETCH NEXT :limit ROWS ONLY
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="SeatView.listSeats" result-set-mapping="SeatView">
+    <query>
+      <![CDATA[
+        SELECT
+          ss.seat_number,
+          ss.status,
+          ssb.booking_id AS booking_id,
+          ssb.status AS booking_status
+        FROM
+          show_seat AS ss
+        INNER JOIN
+          show AS s ON s.id_ = ss.show_id_
+        LEFT OUTER JOIN
+          booking AS ssb ON ssb.booking_id = ss.booking_id
+        WHERE
+          s.show_id = :show_id
+        ORDER BY
+          ss.index_ ASC
+      ]]>
+    </query>
+  </named-native-query>
+  <sql-result-set-mapping name="ShowDetailView">
+    <constructor-result target-class="com.github.booking.application.show.query.ShowDetailView">
+      <column name="show_id"/>
+      <column name="scheduled_at" class="java.time.Instant"/>
+      <column name="movie_id"/>
+      <column name="movie_title"/>
+      <column name="hall_id"/>
+      <column name="hall_name"/>
+    </constructor-result>
+  </sql-result-set-mapping>
+  <sql-result-set-mapping name="ShowSummaryView">
+    <constructor-result target-class="com.github.booking.application.show.query.ShowSummaryView">
+      <column name="show_id"/>
+      <column name="scheduled_at" class="java.time.Instant"/>
+      <column name="movie_id"/>
+      <column name="movie_title"/>
+      <column name="hall_id"/>
+      <column name="hall_name"/>
+    </constructor-result>
+  </sql-result-set-mapping>
+  <sql-result-set-mapping name="SeatView">
+    <constructor-result target-class="com.github.booking.application.show.query.SeatView">
+      <column name="seat_number"/>
+      <column name="status"/>
+      <column name="booking_id"/>
+      <column name="booking_status"/>
+    </constructor-result>
+  </sql-result-set-mapping>
+</entity-mappings>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm" version="3.2">
+  <package>com.github.booking.domain.show</package>
+  <access>FIELD</access>
+  <sequence-generator name="Show" sequence-name="show_s"/>
+  <entity class="Show">
+    <table name="show"/>
+    <attributes>
+      <id name="id">
+        <column name="id_" updatable="false"/>
+        <generated-value strategy="SEQUENCE" generator="Show"/>
+      </id>
+      <basic name="scheduledAt">
+        <column name="scheduled_at"/>
+      </basic>
+      <element-collection name="seats">
+        <order-column name="index_"/>
+        <collection-table name="show_seat">
+          <join-column name="show_id_"/>
+        </collection-table>
+      </element-collection>
+      <embedded name="showId">
+        <attribute-override name="value">
+          <column name="show_id" updatable="false"/>
+        </attribute-override>
+      </embedded>
+      <embedded name="hall">
+        <attribute-override name="hallId.value">
+          <column name="hall_id" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="name">
+          <column name="hall_name" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="seatLayout.rowCount">
+          <column name="hall_seat_layout_row_count" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="seatLayout.columnCount">
+          <column name="hall_seat_layout_column_count" updatable="false"/>
+        </attribute-override>
+      </embedded>
+      <embedded name="movie">
+        <attribute-override name="movieId.value">
+          <column name="movie_id" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="title">
+          <column name="movie_title" updatable="false"/>
+        </attribute-override>
+      </embedded>
+    </attributes>
+  </entity>
+  <embeddable class="ShowId">
+    <attributes>
+      <basic name="value"/>
+    </attributes>
+  </embeddable>
+  <embeddable class="Seat">
+    <attributes>
+      <basic name="status">
+        <enumerated>STRING</enumerated>
+      </basic>
+      <embedded name="seatNumber">
+        <attribute-override name="value">
+          <column name="seat_number" updatable="false"/>
+        </attribute-override>
+      </embedded>
+      <embedded name="bookingId">
+        <attribute-override name="value">
+          <column name="booking_id"/>
+        </attribute-override>
+      </embedded>
+    </attributes>
+  </embeddable>
+</entity-mappings>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm" version="3.2">
+  <named-native-query name="BookingDetailView.getBooking" result-set-mapping="BookingDetailView">
+    <query>
+      <![CDATA[
+        SELECT
+          b.booking_id,
+          b.status,
+          bs.show_id AS show_id,
+          bs.scheduled_at AS show_scheduled_at
+        FROM
+          booking AS b
+        INNER JOIN
+          show AS bs ON bs.show_id = b.show_id
+        WHERE
+          b.booking_id = :booking_id
+      ]]>
+    </query>
+  </named-native-query>
+  <named-native-query name="BookingSummaryView.listBookings" result-set-mapping="BookingSummaryView">
+    <query>
+      <![CDATA[
+        SELECT
+          b.booking_id,
+          b.status,
+          bs.show_id AS show_id,
+          bs.scheduled_at AS show_scheduled_at
+        FROM
+          booking AS b
+        INNER JOIN
+          show AS bs ON bs.show_id = b.show_id
+        ORDER BY
+          b.id_ ASC
+        OFFSET :offset
+        FETCH NEXT :limit ROWS ONLY
+      ]]>
+    </query>
+  </named-native-query>
+  <sql-result-set-mapping name="BookingDetailView">
+    <constructor-result target-class="com.github.booking.application.booking.query.BookingDetailView">
+      <column name="booking_id"/>
+      <column name="status"/>
+      <column name="show_id"/>
+      <column name="show_scheduled_at" class="java.time.Instant"/>
+    </constructor-result>
+  </sql-result-set-mapping>
+  <sql-result-set-mapping name="BookingSummaryView">
+    <constructor-result target-class="com.github.booking.application.booking.query.BookingSummaryView">
+      <column name="booking_id"/>
+      <column name="status"/>
+      <column name="show_id"/>
+      <column name="show_scheduled_at" class="java.time.Instant"/>
+    </constructor-result>
+  </sql-result-set-mapping>
+</entity-mappings>

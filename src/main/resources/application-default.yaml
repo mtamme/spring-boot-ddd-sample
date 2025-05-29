@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: booking
+  datasource:
+    url: jdbc:h2:mem:booking;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    table: schema_history
+  jpa:
+    hibernate:
+      ddl-auto: none
+    mapping-resources:
+      - META-INF/booking/domain/booking.orm.xml
+      - META-INF/booking/domain/hall.orm.xml
+      - META-INF/booking/domain/movie.orm.xml
+      - META-INF/booking/domain/show.orm.xml
+      - META-INF/booking/query/booking.orm.xml
+      - META-INF/booking/query/show.orm.xml
+      - META-INF/seedwork/domain/super-types.orm.xml
+      - META-INF/seedwork/outbox.orm.xml
+    open-in-view: false
+
+logging:
+  level:
+    com:
+      github:
+        seedwork:
+          infrastructure:
+            outbox: debug
+    org:
+      hibernate:
+        SQL: info
+
+outbox:
+  enabled: true
+
+springdoc:
+  swagger-ui:
+    default-models-expand-depth: -1
+    urls-primary-name: Booking API
+    urls:
+      - name: Booking API
+        url: /booking/booking-openapi.yaml
+      - name: Outbox API
+        url: /seedwork/outbox-openapi.yaml
