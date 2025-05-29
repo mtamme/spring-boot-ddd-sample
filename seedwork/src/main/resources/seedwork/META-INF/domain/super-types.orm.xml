@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm" version="3.2">
+  <package>com.github.seedwork.domain</package>
+  <access>FIELD</access>
+  <mapped-superclass class="AggregateRoot">
+    <attributes>
+      <version name="version">
+        <column name="version_"/>
+      </version>
+      <transient name="raisedEvents"/>
+    </attributes>
+  </mapped-superclass>
+</entity-mappings>
