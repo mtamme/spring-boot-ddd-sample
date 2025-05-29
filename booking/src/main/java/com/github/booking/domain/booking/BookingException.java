@@ -1,0 +1,32 @@
+package com.github.booking.domain.booking;
+
+import com.github.seedwork.core.problem.Problem;
+import com.github.seedwork.core.problem.ProblemException;
+
+public class BookingException extends ProblemException {
+
+  public static final Problem NOT_FOUND_PROBLEM = Problem.notFound("booking-not-found", "Booking not found");
+  public static final Problem NOT_CANCELABLE_PROBLEM = Problem.invariant("booking-not-cancelable", "Booking not cancelable");
+  public static final Problem NOT_CONFIRMABLE_PROBLEM = Problem.invariant("booking-not-confirmable", "Booking not confirmable");
+  public static final Problem NOT_INITIATED_PROBLEM = Problem.precondition("booking-not-initiated", "Booking not initiated");
+
+  private BookingException(final Problem problem) {
+    super(problem);
+  }
+
+  public static BookingException notFound() {
+    return new BookingException(NOT_FOUND_PROBLEM);
+  }
+
+  public static BookingException notCancelable() {
+    return new BookingException(NOT_CANCELABLE_PROBLEM);
+  }
+
+  public static BookingException notConfirmable() {
+    return new BookingException(NOT_CONFIRMABLE_PROBLEM);
+  }
+
+  public static BookingException notInitiated() {
+    return new BookingException(NOT_INITIATED_PROBLEM);
+  }
+}
