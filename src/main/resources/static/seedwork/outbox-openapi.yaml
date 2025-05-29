@@ -1,0 +1,272 @@
+openapi: '3.0.0'
+
+info:
+  title: Outbox API
+  description: Outbox API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Message
+    description: Message operations
+
+paths:
+  /outbox/messages:
+    get:
+      summary: Peek all messages
+      operationId: peekMessages
+      tags:
+        - Message
+      parameters:
+        - in: query
+          name: offset
+          description: Offset
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeekMessagesResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /outbox/messages/{sequence_number}:
+    get:
+      summary: Peek a message
+      operationId: peekMessage
+      tags:
+        - Message
+      parameters:
+        - in: path
+          name: sequence_number
+          description: Sequence number
+          required: true
+          schema:
+            $ref: '#/components/schemas/SequenceNumber'
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeekMessageResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /outbox/messages/locks:
+    post:
+      summary: Lock next messages
+      operationId: lockNextMessages
+      tags:
+        - Message
+      parameters:
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        201:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockNextMessagesResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /outbox/messages/{sequence_number}/locks/{lock_id}:
+    put:
+      summary: Requeue a locked message
+      operationId: requeueLockedMessage
+      tags:
+        - Message
+      parameters:
+        - in: path
+          name: sequence_number
+          description: Sequence number
+          required: true
+          schema:
+            $ref: '#/components/schemas/SequenceNumber'
+        - in: path
+          name: lock_id
+          description: Lock ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/LockId'
+      responses:
+        204:
+          description: Success
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      summary: Dequeue a locked message
+      operationId: dequeueLockedMessage
+      tags:
+        - Message
+      parameters:
+        - in: path
+          name: sequence_number
+          description: Sequence number
+          required: true
+          schema:
+            $ref: '#/components/schemas/SequenceNumber'
+        - in: path
+          name: lock_id
+          description: Lock ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/LockId'
+      responses:
+        204:
+          description: Success
+        default:
+          $ref: '#/components/responses/Problem'
+
+components:
+  schemas:
+    PeekMessagesResponse:
+      type: object
+      description: Peek messages response
+      required:
+        - messages
+      properties:
+        messages:
+          items:
+            $ref: '#/components/schemas/MessageSummary'
+
+    PeekMessageResponse:
+      type: object
+      description: Peek message response
+      required:
+        - sequenceNumber
+        - groupId
+        - enqueuedAt
+        - availableAt
+        - attemptCount
+        - subject
+      properties:
+        sequenceNumber:
+          $ref: '#/components/schemas/SequenceNumber'
+        groupId:
+          type: string
+        enqueuedAt:
+          type: string
+          format: date-time
+        availableAt:
+          type: string
+          format: date-time
+        attemptCount:
+          type: integer
+          format: int32
+        subject:
+          type: string
+
+    LockNextMessagesResponse:
+      type: object
+      description: Lock next messages response
+      required:
+        - lockId
+        - messages
+      properties:
+        lockId:
+          $ref: '#/components/schemas/LockId'
+        messages:
+          items:
+            $ref: '#/components/schemas/MessageSummary'
+
+    MessageSummary:
+      type: object
+      description: Message summary
+      required:
+        - sequenceNumber
+        - groupId
+        - enqueuedAt
+        - availableAt
+        - attemptCount
+        - subject
+      properties:
+        sequenceNumber:
+          $ref: '#/components/schemas/SequenceNumber'
+        groupId:
+          type: string
+        enqueuedAt:
+          type: string
+          format: date-time
+        availableAt:
+          type: string
+          format: date-time
+        attemptCount:
+          type: integer
+          format: int32
+        subject:
+          type: string
+
+    SequenceNumber:
+      type: integer
+      format: int64
+      description: Sequence number
+
+    LockId:
+      type: string
+      format: uuid
+
+    ProblemResponse:
+      type: object
+      description: Problem response
+      required:
+        - type
+        - title
+        - status
+        - instance
+      properties:
+        type:
+          type: string
+          format: uri
+          example: urn:problem:resource-not-found
+        title:
+          type: string
+          example: Not Found
+        status:
+          type: integer
+          format: int32
+          minimum: 100
+          maximum: 600
+          exclusiveMaximum: true
+          example: 404
+        detail:
+          type: string
+          example: Resource not found
+        instance:
+          type: string
+          format: uri
+          example: /resource
+
+  responses:
+    Problem:
+      description: Problem
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemResponse'
