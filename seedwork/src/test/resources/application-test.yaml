@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    clean-disabled: false
+    table: schema_history
+    locations:
+      - classpath:seedwork/db/migration/outbox
+  jpa:
+    hibernate:
+      ddl-auto: none
+    mapping-resources:
+      - seedwork/META-INF/domain/super-types.orm.xml
+      - seedwork/META-INF/outbox.orm.xml
+    open-in-view: false
+
+logging:
+  level:
+    com:
+      github:
+        seedwork:
+          infrastructure:
+            outbox: debug
+    org:
+      hibernate:
+        SQL: info
+
+outbox:
+  poll-interval: PT0S

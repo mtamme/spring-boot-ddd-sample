@@ -1,0 +1,566 @@
+openapi: '3.0.0'
+
+info:
+  title: Booking API
+  description: Booking API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Booking
+    description: Booking operations
+  - name: Show
+    description: Show operations
+
+paths:
+  /bookings/{booking_id}:
+    get:
+      summary: Get a booking
+      operationId: getBooking
+      tags:
+        - Booking
+      parameters:
+        - in: path
+          name: booking_id
+          description: Booking ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/BookingId'
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetBookingResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      summary: Cancel a booking
+      operationId: cancelBooking
+      tags:
+        - Booking
+      parameters:
+        - in: path
+          name: booking_id
+          description: Booking ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/BookingId'
+      responses:
+        204:
+          description: Success
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /bookings:
+    get:
+      summary: List all bookings
+      operationId: listBookings
+      tags:
+        - Booking
+      parameters:
+        - in: query
+          name: offset
+          description: Offset
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListBookingsResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /shows/{show_id}/bookings:
+    post:
+      summary: Initiate a booking
+      operationId: initiateBooking
+      tags:
+        - Booking
+      parameters:
+        - in: path
+          name: show_id
+          description: Show ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/ShowId'
+      responses:
+        201:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitiateBookingResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /bookings/{booking_id}/reserved-seats/{seat_number}:
+    put:
+      summary: Reserve a seat
+      operationId: reserveSeat
+      tags:
+        - Booking
+      parameters:
+        - in: path
+          name: booking_id
+          description: Booking ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/BookingId'
+        - in: path
+          name: seat_number
+          description: Seat number
+          required: true
+          schema:
+            $ref: '#/components/schemas/SeatNumber'
+      responses:
+        204:
+          description: Success
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      summary: Release a seat
+      operationId: releaseSeat
+      tags:
+        - Booking
+      parameters:
+        - in: path
+          name: booking_id
+          description: Booking ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/BookingId'
+        - in: path
+          name: seat_number
+          description: Seat number
+          required: true
+          schema:
+            $ref: '#/components/schemas/SeatNumber'
+      responses:
+        204:
+          description: Success
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /confirmed-bookings/{booking_id}:
+    put:
+      summary: Confirm a booking
+      operationId: confirmBooking
+      tags:
+        - Booking
+      parameters:
+        - in: path
+          name: booking_id
+          description: Booking ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/BookingId'
+      responses:
+        204:
+          description: Success
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /shows/{show_id}:
+    get:
+      summary: Get a show
+      operationId: getShow
+      tags:
+        - Show
+      parameters:
+        - in: path
+          name: show_id
+          description: Show ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/ShowId'
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetShowResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /shows:
+    get:
+      summary: List all shows
+      operationId: listShows
+      tags:
+        - Show
+      parameters:
+        - in: query
+          name: offset
+          description: Offset
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListShowsResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /search/shows:
+    get:
+      summary: Search all shows
+      operationId: searchShows
+      tags:
+        - Show
+      parameters:
+        - in: query
+          name: q
+          description: Query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 20
+        - in: query
+          name: offset
+          description: Offset
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchShowsResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /shows/{show_id}/seats:
+    get:
+      summary: List all seats
+      operationId: listSeats
+      tags:
+        - Show
+      parameters:
+        - in: path
+          name: show_id
+          description: Show ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/ShowId'
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSeatsResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+components:
+  schemas:
+    GetBookingResponse:
+      type: object
+      description: Get booking response
+      required:
+        - bookingId
+        - status
+        - show
+      properties:
+        bookingId:
+          $ref: '#/components/schemas/BookingId'
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        show:
+          $ref: '#/components/schemas/BookingShow'
+
+    ListBookingsResponse:
+      type: object
+      description: List bookings response
+      required:
+        - bookings
+      properties:
+        bookings:
+          items:
+            $ref: '#/components/schemas/BookingSummary'
+
+    BookingSummary:
+      type: object
+      description: Booking summary
+      required:
+        - bookingId
+        - status
+        - show
+      properties:
+        bookingId:
+          $ref: '#/components/schemas/BookingId'
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        show:
+          $ref: '#/components/schemas/BookingShow'
+
+    BookingShow:
+      type: object
+      description: Booking show
+      required:
+        - showId
+        - scheduledAt
+      properties:
+        showId:
+          $ref: '#/components/schemas/ShowId'
+        scheduledAt:
+          type: string
+          format: date-time
+
+    InitiateBookingResponse:
+      type: object
+      description: Initiate booking response
+      required:
+        - bookingId
+      properties:
+        bookingId:
+          $ref: '#/components/schemas/BookingId'
+
+    BookingStatus:
+      type: string
+      description: Booking status
+      x-extensible-enum:
+        - INITIATED
+        - CONFIRMED
+        - CANCELLED
+
+    BookingId:
+      type: string
+      pattern: 'B0[0-9A-F]{16}'
+      description: Booking ID
+
+    GetShowResponse:
+      type: object
+      description: Get show response
+      required:
+        - showId
+        - scheduledAt
+        - movie
+        - hall
+        - seats
+      properties:
+        showId:
+          $ref: '#/components/schemas/ShowId'
+        scheduledAt:
+          type: string
+          format: date-time
+        movie:
+          $ref: '#/components/schemas/ShowMovie'
+        hall:
+          $ref: '#/components/schemas/ShowHall'
+
+    ListShowsResponse:
+      type: object
+      description: List shows response
+      required:
+        - shows
+      properties:
+        shows:
+          items:
+            $ref: '#/components/schemas/ShowSummary'
+
+    SearchShowsResponse:
+      type: object
+      description: Search shows response
+      required:
+        - shows
+      properties:
+        shows:
+          items:
+            $ref: '#/components/schemas/ShowSummary'
+
+    ShowSummary:
+      type: object
+      description: Show summary
+      required:
+        - showId
+        - scheduledAt
+        - movie
+        - hall
+      properties:
+        showId:
+          $ref: '#/components/schemas/ShowId'
+        scheduledAt:
+          type: string
+          format: date-time
+        movie:
+          $ref: '#/components/schemas/ShowMovie'
+        hall:
+          $ref: '#/components/schemas/ShowHall'
+
+    ShowMovie:
+      type: object
+      description: Show movie
+      required:
+        - movieId
+        - title
+      properties:
+        movieId:
+          $ref: '#/components/schemas/MovieId'
+        title:
+          type: string
+
+    MovieId:
+      type: string
+      pattern: 'M0[0-9A-F]{16}'
+      description: Movie ID
+
+    ShowHall:
+      type: object
+      description: Show hall
+      required:
+        - hallId
+        - name
+      properties:
+        hallId:
+          $ref: '#/components/schemas/HallId'
+        name:
+          type: string
+
+    HallId:
+      type: string
+      pattern: 'H0[0-9A-F]{16}'
+      description: Hall ID
+
+    ListSeatsResponse:
+      type: object
+      description: List seats response
+      required:
+        - seats
+      properties:
+        seats:
+          items:
+            $ref: '#/components/schemas/Seat'
+
+    Seat:
+      type: object
+      description: Show seat
+      required:
+        - seatNumber
+        - status
+      properties:
+        seatNumber:
+          $ref: '#/components/schemas/SeatNumber'
+        status:
+          $ref: '#/components/schemas/SeatStatus'
+        booking:
+          $ref: '#/components/schemas/SeatBooking'
+
+    SeatBooking:
+      type: object
+      description: Seat booking
+      required:
+        - bookingId
+        - status
+      properties:
+        bookingId:
+          $ref: '#/components/schemas/BookingId'
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+
+    SeatStatus:
+      type: string
+      description: Seat status
+      x-extensible-enum:
+        - AVAILABLE
+        - RESERVED
+        - BOOKED
+
+    SeatNumber:
+      type: string
+      pattern: '[A-Z][1-9][0-9]?'
+      description: Seat number
+      example: 'A1'
+
+    ShowId:
+      type: string
+      pattern: 'S0[0-9A-F]{16}'
+      description: Show ID
+
+    ProblemResponse:
+      type: object
+      description: Problem response
+      required:
+        - type
+        - title
+        - status
+        - instance
+      properties:
+        type:
+          type: string
+          format: uri
+          example: urn:problem:resource-not-found
+        title:
+          type: string
+          example: Not Found
+        status:
+          type: integer
+          format: int32
+          minimum: 100
+          maximum: 600
+          exclusiveMaximum: true
+          example: 404
+        detail:
+          type: string
+          example: Resource not found
+        instance:
+          type: string
+          format: uri
+          example: /resource
+
+  responses:
+    Problem:
+      description: Problem
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemResponse'
