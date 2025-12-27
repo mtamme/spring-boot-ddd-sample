@@ -16,8 +16,10 @@ spring:
       - META-INF/booking/domain/hall.orm.xml
       - META-INF/booking/domain/movie.orm.xml
       - META-INF/booking/domain/show.orm.xml
+      - META-INF/booking/domain/ticket.orm.xml
       - META-INF/booking/query/booking.orm.xml
       - META-INF/booking/query/show.orm.xml
+      - META-INF/booking/query/ticket.orm.xml
       - META-INF/seedwork/domain/super-types.orm.xml
       - META-INF/seedwork/outbox.orm.xml
     open-in-view: false
