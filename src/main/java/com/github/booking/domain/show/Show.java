@@ -6,6 +6,9 @@ import com.github.booking.domain.hall.Hall;
 import com.github.booking.domain.hall.SeatLayout;
 import com.github.booking.domain.hall.SeatNumber;
 import com.github.booking.domain.movie.Movie;
+import com.github.booking.domain.ticket.SeatAssignment;
+import com.github.booking.domain.ticket.Ticket;
+import com.github.booking.domain.ticket.TicketId;
 import com.github.seedwork.domain.AggregateRoot;
 import com.github.seedwork.domain.Contract;
 
@@ -121,6 +124,19 @@ public class Show extends AggregateRoot {
 
   public Booking initiateBooking(final BookingId bookingId) {
     return new Booking(showId(), bookingId);
+  }
+
+  public Ticket issueTicket(final TicketId ticketId, final SeatNumber seatNumber) {
+    final var seat = seat(seatNumber);
+
+    return new Ticket(
+      seat.bookingId(),
+      ticketId,
+      new SeatAssignment(
+        movie().title(),
+        hall().name(),
+        scheduledAt(),
+        seat.seatNumber()));
   }
 
   private Long id;

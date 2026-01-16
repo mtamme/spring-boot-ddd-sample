@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm" version="3.2">
+  <package>com.github.booking.domain.ticket</package>
+  <access>FIELD</access>
+  <sequence-generator name="Ticket" sequence-name="ticket_s"/>
+  <entity class="Ticket">
+    <table name="ticket"/>
+    <attributes>
+      <id name="id">
+        <column name="id_" updatable="false"/>
+        <generated-value strategy="SEQUENCE" generator="Ticket"/>
+      </id>
+      <basic name="status">
+        <column name="status"/>
+        <enumerated>STRING</enumerated>
+      </basic>
+      <embedded name="bookingId">
+        <attribute-override name="value">
+          <column name="booking_id" updatable="false"/>
+        </attribute-override>
+      </embedded>
+      <embedded name="ticketId">
+        <attribute-override name="value">
+          <column name="ticket_id" updatable="false"/>
+        </attribute-override>
+      </embedded>
+      <embedded name="seatAssignment">
+        <attribute-override name="movieTitle">
+          <column name="seat_assignment_movie_title" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="hallName">
+          <column name="seat_assignment_hall_name" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="scheduledAt">
+          <column name="seat_assignment_scheduled_at" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="seatNumber.value">
+          <column name="seat_assignment_seat_number" updatable="false"/>
+        </attribute-override>
+      </embedded>
+    </attributes>
+  </entity>
+  <embeddable class="TicketId">
+    <attributes>
+      <basic name="value"/>
+    </attributes>
+  </embeddable>
+  <embeddable class="SeatAssignment">
+    <attributes>
+      <basic name="movieTitle"/>
+      <basic name="hallName"/>
+      <basic name="scheduledAt"/>
+      <embedded name="seatNumber"/>
+    </attributes>
+  </embeddable>
+</entity-mappings>

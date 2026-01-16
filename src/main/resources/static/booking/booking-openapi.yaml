@@ -13,6 +13,8 @@ tags:
     description: Booking operations
   - name: Show
     description: Show operations
+  - name: Ticket
+    description: Ticket operations
 
 paths:
   /bookings/{booking_id}:
@@ -301,6 +303,82 @@ paths:
         default:
           $ref: '#/components/responses/Problem'
 
+  /tickets/{ticket_id}:
+    get:
+      summary: Get a ticket
+      operationId: getTicket
+      tags:
+        - Ticket
+      parameters:
+        - in: path
+          name: ticket_id
+          description: Ticket ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/TicketId'
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTicketResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /tickets:
+    get:
+      summary: List all tickets
+      operationId: listTickets
+      tags:
+        - Ticket
+      parameters:
+        - in: query
+          name: offset
+          description: Offset
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          description: Limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTicketsResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /redeemed-tickets/{ticket_id}:
+    put:
+      summary: Redeem a ticket
+      operationId: redeemTicket
+      tags:
+        - Ticket
+      parameters:
+        - in: path
+          name: ticket_id
+          description: Ticket ID
+          required: true
+          schema:
+            $ref: '#/components/schemas/TicketId'
+      responses:
+        204:
+          description: Success
+        default:
+          $ref: '#/components/responses/Problem'
+
 components:
   schemas:
     GetBookingResponse:
@@ -525,6 +603,95 @@ components:
       type: string
       pattern: 'S0[0-9A-F]{16}'
       description: Show ID
+
+    GetTicketResponse:
+      type: object
+      description: Get ticket response
+      required:
+        - ticketId
+        - status
+        - booking
+        - seatAssignment
+      properties:
+        ticketId:
+          $ref: '#/components/schemas/TicketId'
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        booking:
+          $ref: '#/components/schemas/TicketBooking'
+        seatAssignment:
+          $ref: '#/components/schemas/SeatAssignment'
+
+    ListTicketsResponse:
+      type: object
+      description: List tickets response
+      required:
+        - tickets
+      properties:
+        tickets:
+          items:
+            $ref: '#/components/schemas/TicketSummary'
+
+    TicketSummary:
+      type: object
+      description: Ticket summary
+      required:
+        - ticketId
+        - status
+        - booking
+        - seatAssignment
+      properties:
+        ticketId:
+          $ref: '#/components/schemas/TicketId'
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        booking:
+          $ref: '#/components/schemas/TicketBooking'
+        seatAssignment:
+          $ref: '#/components/schemas/SeatAssignment'
+
+    SeatAssignment:
+      type: object
+      description: Seat assignment
+      required:
+        - movieTitle
+        - hallName
+        - scheduledAt
+        - seatNumber
+      properties:
+        movieTitle:
+          type: string
+        hallName:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        seatNumber:
+          $ref: '#/components/schemas/SeatNumber'
+
+    TicketBooking:
+      type: object
+      description: Ticket booking
+      required:
+        - bookingId
+        - status
+      properties:
+        bookingId:
+          $ref: '#/components/schemas/BookingId'
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+
+    TicketStatus:
+      type: string
+      description: Ticket status
+      x-extensible-enum:
+        - ISSUED
+        - REDEEMED
+
+    TicketId:
+      type: string
+      pattern: 'T0[0-9A-F]{16}'
+      description: Ticket ID
 
     ProblemResponse:
       type: object
