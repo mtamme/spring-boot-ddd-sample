@@ -8,7 +8,8 @@ description: "Task list template for feature implementation"
 **Input**: Design documents from `/specs/[###-feature-name]/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-**Tests**: The examples below include test tasks. Tests are OPTIONAL - only include them if explicitly requested in the feature specification.
+**Tests**: Tests are MANDATORY. Every story MUST include the automated tests needed
+to prove the touched layers and contracts.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -20,10 +21,11 @@ description: "Task list template for feature implementation"
 
 ## Path Conventions
 
-- **Single project**: `src/`, `tests/` at repository root
-- **Web app**: `backend/src/`, `frontend/src/`
-- **Mobile**: `api/src/`, `ios/src/` or `android/src/`
-- Paths shown below assume single project - adjust based on plan.md structure
+- **Parent build**: `pom.xml` at repository root
+- **Booking module**: `booking/src/main/java`, `booking/src/main/resources`, `booking/src/test/java`
+- **Seedwork module**: `seedwork/src/main/java`, `seedwork/src/main/resources`, `seedwork/src/test/java`
+- **Migrations**: `booking/src/main/resources/db/migration`, `seedwork/src/main/resources/seedwork/db/migration/outbox`
+- **OpenAPI contracts**: `booking/src/main/resources/static`, `seedwork/src/main/resources/seedwork/static/outbox`
 
 <!-- 
   ============================================================================
@@ -79,21 +81,21 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 1 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 1 ⚠️
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T010 [P] [US1] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T011 [P] [US1] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T010 [P] [US1] Domain or application test in `booking/src/test/java/...` or `seedwork/src/test/java/...`
+- [ ] T011 [P] [US1] Web, persistence, or architecture test covering the changed boundary
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Create [Entity1] model in src/models/[entity1].py
-- [ ] T013 [P] [US1] Create [Entity2] model in src/models/[entity2].py
-- [ ] T014 [US1] Implement [Service] in src/services/[service].py (depends on T012, T013)
-- [ ] T015 [US1] Implement [endpoint/feature] in src/[location]/[file].py
-- [ ] T016 [US1] Add validation and error handling
-- [ ] T017 [US1] Add logging for user story 1 operations
+- [ ] T012 [P] [US1] Add or update domain/application code in the target module
+- [ ] T013 [P] [US1] Update REST adapter, persistence adapter, or mapper in the target module
+- [ ] T014 [US1] Update OpenAPI spec, Flyway migration, ORM mapping, or generated contract assets if required
+- [ ] T015 [US1] Implement feature wiring and transaction boundaries
+- [ ] T016 [US1] Add validation, problem handling, and bounded query behavior
+- [ ] T017 [US1] Verify `mvn -B package --file pom.xml`
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -105,17 +107,17 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 2 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 2 ⚠️
 
-- [ ] T018 [P] [US2] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T019 [P] [US2] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T018 [P] [US2] Domain or application test in the affected module
+- [ ] T019 [P] [US2] Web, persistence, or architecture test covering the changed boundary
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] Create [Entity] model in src/models/[entity].py
-- [ ] T021 [US2] Implement [Service] in src/services/[service].py
-- [ ] T022 [US2] Implement [endpoint/feature] in src/[location]/[file].py
-- [ ] T023 [US2] Integrate with User Story 1 components (if needed)
+- [ ] T020 [P] [US2] Add or update domain/application code in the target module
+- [ ] T021 [US2] Update REST adapter, persistence adapter, or mapper in the target module
+- [ ] T022 [US2] Update OpenAPI spec, Flyway migration, ORM mapping, or generated contract assets if required
+- [ ] T023 [US2] Verify module integration and `mvn -B package --file pom.xml`
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -127,16 +129,16 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 3 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 3 ⚠️
 
-- [ ] T024 [P] [US3] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T025 [P] [US3] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T024 [P] [US3] Domain or application test in the affected module
+- [ ] T025 [P] [US3] Web, persistence, or architecture test covering the changed boundary
 
 ### Implementation for User Story 3
 
-- [ ] T026 [P] [US3] Create [Entity] model in src/models/[entity].py
-- [ ] T027 [US3] Implement [Service] in src/services/[service].py
-- [ ] T028 [US3] Implement [endpoint/feature] in src/[location]/[file].py
+- [ ] T026 [P] [US3] Add or update domain/application code in the target module
+- [ ] T027 [US3] Update REST adapter, persistence adapter, or mapper in the target module
+- [ ] T028 [US3] Update contract or migration assets and verify `mvn -B package --file pom.xml`
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -150,10 +152,10 @@ Examples of foundational tasks (adjust based on your project):
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] TXXX [P] Documentation updates in docs/
+- [ ] TXXX [P] Documentation and specification updates in `README.md` or `specs/...`
 - [ ] TXXX Code cleanup and refactoring
-- [ ] TXXX Performance optimization across all stories
-- [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
+- [ ] TXXX Performance verification against the documented budget
+- [ ] TXXX [P] Additional automated tests for uncovered boundaries
 - [ ] TXXX Security hardening
 - [ ] TXXX Run quickstart.md validation
 
@@ -178,10 +180,10 @@ Examples of foundational tasks (adjust based on your project):
 
 ### Within Each User Story
 
-- Tests (if included) MUST be written and FAIL before implementation
-- Models before services
-- Services before endpoints
-- Core implementation before integration
+- Tests MUST be written and fail before implementation
+- Domain and application types before infrastructure adapters
+- Contract and migration assets before dependent integration wiring
+- Core implementation before cross-layer integration
 - Story complete before moving to next priority
 
 ### Parallel Opportunities
@@ -199,12 +201,12 @@ Examples of foundational tasks (adjust based on your project):
 
 ```bash
 # Launch all tests for User Story 1 together (if tests requested):
-Task: "Contract test for [endpoint] in tests/contract/test_[name].py"
-Task: "Integration test for [user journey] in tests/integration/test_[name].py"
+Task: "Domain or application test in booking/src/test/java/... or seedwork/src/test/java/..."
+Task: "Web, persistence, or architecture test covering the changed boundary"
 
 # Launch all models for User Story 1 together:
-Task: "Create [Entity1] model in src/models/[entity1].py"
-Task: "Create [Entity2] model in src/models/[entity2].py"
+Task: "Add domain/application code in booking/src/main/java/... or seedwork/src/main/java/..."
+Task: "Update adapter, mapper, contract, or migration assets in the affected module"
 ```
 
 ---

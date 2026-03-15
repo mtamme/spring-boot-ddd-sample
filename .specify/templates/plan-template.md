@@ -31,7 +31,11 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] Module and layer impact is explicit (`booking`: `infrastructure -> application -> domain`; `seedwork`: `infrastructure -> domain -> core`).
+- [ ] Domain changes keep business rules in domain types and preserve entity/event/value-object modeling rules.
+- [ ] Required automated tests are identified for every touched layer, including ArchUnit when structure changes.
+- [ ] OpenAPI specs, Flyway migrations, ORM/query mappings, and generated interfaces are accounted for when contracts or persistence change.
+- [ ] Performance budget is documented, including endpoint/query latency target, bounded result expectations, and any N+1 or chatty-call risks.
 
 ## Project Structure
 
@@ -48,51 +52,41 @@ specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+pom.xml
+booking/
+├── src/main/java/com/github/booking/
+│   ├── application/
+│   ├── domain/
+│   └── infrastructure/
+├── src/main/resources/
+│   ├── META-INF/
+│   ├── db/migration/
+│   └── static/
+└── src/test/java/com/github/booking/
+    ├── application/
+    ├── domain/
+    ├── infrastructure/
+    └── ArchitectureTest.java
 
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+seedwork/
+├── src/main/java/com/github/seedwork/
+│   ├── core/
+│   ├── domain/
+│   └── infrastructure/
+├── src/main/resources/seedwork/
+│   ├── META-INF/
+│   ├── db/migration/outbox/
+│   └── static/outbox/
+└── src/test/java/com/github/seedwork/
+    ├── domain/
+    ├── infrastructure/
+    └── ArchitectureTest.java
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: [Document affected modules, layers, and resource
+directories from the tree above]
 
 ## Complexity Tracking
 

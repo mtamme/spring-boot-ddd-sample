@@ -95,6 +95,19 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+### Architecture & Consistency Constraints *(mandatory)*
+
+- **AC-001**: Identify the module(s) affected by this feature (`booking`, `seedwork`, or both).
+- **AC-002**: State the allowed dependency direction for the touched code and any new types required in `domain`, `application`, `infrastructure`, or `core`.
+- **AC-003**: List any OpenAPI, Flyway, ORM mapping, outbox, or generated-interface updates required by the feature.
+- **AC-004**: Describe how the feature preserves domain invariants, explicit query paths, and bounded result sets.
+
+### Testing Expectations *(mandatory)*
+
+- **TE-001**: List the unit, integration, and architecture tests that MUST be added or updated.
+- **TE-002**: For every user story, identify the primary failing test or verification that proves completion.
+- **TE-003**: If no automated test is needed for a touched layer, explain why that layer is unaffected.
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
@@ -113,3 +126,5 @@
 - **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+
+- Include at least one success criterion for response time, throughput, or data-volume safety when the feature changes synchronous APIs, queries, or persistence behavior.
