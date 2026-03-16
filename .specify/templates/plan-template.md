@@ -36,6 +36,8 @@
 - [ ] Required automated tests are identified for every touched layer, including ArchUnit when structure changes.
 - [ ] OpenAPI specs, Flyway migrations, ORM/query mappings, and generated interfaces are accounted for when contracts or persistence change.
 - [ ] Performance budget is documented, including endpoint/query latency target, bounded result expectations, and any N+1 or chatty-call risks.
+- [ ] All precondition checks use `Contract.require()` and all invariant checks use `Contract.check()`; domain exceptions extend `ProblemException` with static factory methods.
+- [ ] Naming follows layer conventions: noun accessors and `is<State>()` predicates in domain; `<verb><Noun>(<Command>)` in command handlers; `get<Entity>` / `list<Entities>` in query handlers; `to<TargetType>()` in mappers; `<method>With<State>Should<Behavior>()` in tests.
 
 ## Project Structure
 

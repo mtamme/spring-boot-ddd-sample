@@ -1,21 +1,18 @@
 <!--
 Sync Impact Report
-- Version change: none -> 1.0.0
+- Version change: 1.0.0 -> 1.1.0
 - Modified principles:
-  - template placeholder -> I. Domain-Centric Boundaries
-  - template placeholder -> II. Domain Behavior Is Encapsulated
-  - template placeholder -> III. Tests Are Mandatory Quality Gates
-  - template placeholder -> IV. Contracts, Migrations, and Generated Interfaces Stay Aligned
-  - template placeholder -> V. Consistency and Performance Budgets Are Designed Up Front
+  - None modified
 - Added sections:
-  - Engineering Standards
-  - Delivery Workflow
+  - Principle VI. Code Contracts and Exception Design
+  - Principle VII. Naming Conventions
+  - JPA Mapping Rules subsection in Engineering Standards
 - Removed sections:
   - None
 - Templates requiring updates:
-  - ✅ updated .specify/templates/plan-template.md
-  - ✅ updated .specify/templates/spec-template.md
-  - ✅ updated .specify/templates/tasks-template.md
+  - ✅ updated .specify/templates/plan-template.md (Constitution Check extended with VI and VII)
+  - ✅ no changes required in .specify/templates/spec-template.md
+  - ✅ no changes required in .specify/templates/tasks-template.md
   - ✅ no command templates directory present at .specify/templates/commands
   - ✅ no runtime guidance updates required in README.md
 - Follow-up TODOs:
@@ -26,6 +23,7 @@ Sync Impact Report
 ## Core Principles
 
 ### I. Domain-Centric Boundaries
+
 All production code MUST live inside explicit inward-facing layers. In bounded
 contexts such as `booking`, dependencies MUST follow
 `infrastructure -> application -> domain`; in shared modules such as `seedwork`,
@@ -37,6 +35,7 @@ structured around DDD modules and ArchUnit rules; architectural drift would brea
 the sample's primary teaching goal.
 
 ### II. Domain Behavior Is Encapsulated
+
 Business rules MUST be implemented in entities, value objects, domain services,
 and domain events rather than in controllers, repositories, or transport DTOs.
 Entities, events, and value objects MUST be modeled as separate concepts; events
@@ -47,6 +46,7 @@ consistently. Rationale: the current codebase uses contract checks, explicit
 event publication, and rich domain models instead of anemic records.
 
 ### III. Tests Are Mandatory Quality Gates
+
 Every change MUST include the narrowest automated tests that prove the behavior
 and the boundary it touches. Domain behavior changes MUST add or update unit
 tests in `src/test/java`; application orchestration changes MUST add service or
@@ -58,6 +58,7 @@ already treats architecture, domain behavior, persistence, and HTTP flows as
 first-class test surfaces.
 
 ### IV. Contracts, Migrations, and Generated Interfaces Stay Aligned
+
 Public HTTP behavior MUST be defined through versioned OpenAPI documents under
 module resources, and generated interfaces MUST be treated as derived artifacts
 from those specs rather than hand-edited sources. Persistent model changes MUST
@@ -69,6 +70,7 @@ Rationale: the repository already ships OpenAPI specs, generated interfaces, ORM
 mappings, and Flyway migrations as the canonical integration contracts.
 
 ### V. Consistency and Performance Budgets Are Designed Up Front
+
 Each feature proposal MUST declare the module boundaries it touches, the data
 access path it introduces, and the performance budget it must satisfy before
 implementation begins. New synchronous HTTP endpoints MUST target p95 latency of
@@ -79,6 +81,85 @@ disabled, queries MUST stay explicit, and large reads MUST provide bounded searc
 or list semantics. Rationale: this codebase is intentionally explicit about query
 handlers, mappings, and transaction boundaries, and that discipline is what keeps
 sample code understandable and production-like.
+
+### VI. Code Contracts Enforce Invariants at Every Boundary
+
+All precondition and invariant checks MUST use `Contract.require()` and
+`Contract.check()` from `seedwork`. No `if`-then-throw guards, assertion
+frameworks, or ad hoc null checks are permitted as replacements.
+
+- `Contract.require(condition)` MUST be used at method entry to validate caller
+  obligations (non-null arguments, valid parameter ranges). Violation throws
+  `IllegalArgumentException`.
+- `Contract.require(condition, exceptionSupplier)` MUST be used when a
+  precondition failure requires a typed domain exception (e.g., not-found).
+- `Contract.check(condition)` MUST be used to assert domain state invariants
+  mid-method. Violation throws `IllegalStateException`.
+- `Contract.check(condition, exceptionSupplier)` MUST be used when an invariant
+  violation requires a typed domain exception (e.g., not-confirmable, not-
+  cancelable).
+
+Domain exceptions MUST extend `ProblemException`. Each error case MUST be
+represented by a `public static final Problem` constant on the exception class.
+Instances MUST be created only through `public static` factory methods (e.g.,
+`BookingException.notFound()`) — constructors MUST be private. Exception factory
+methods MUST be passable as method references so they can be used directly in
+`Contract.check(condition, BookingException::notCancelable)`. Rationale: uniform
+contract usage makes invariant enforcement visible and grep-able; the
+`ProblemException` hierarchy ensures every failure carries an HTTP-mappable
+problem descriptor without leaking implementation detail.
+
+### VII. Naming Conventions Are Uniformly Applied Across All Layers
+
+Names MUST follow the layer-specific conventions derived from the existing
+codebase. Reviewers MUST reject names that diverge from these patterns.
+
+**Domain layer — entity accessor methods**: Use simple noun form with no `get`
+prefix. Boolean state predicates use `is<State>()`. Private state-mutation
+helpers use `markAs<State>()`.
+
+- Accessors: `showId()`, `bookingId()`, `status()`
+- Predicates: `isInitiated()`, `isConfirmed()`, `isCancelled()`
+- Commands: imperative verb — `confirm()`, `cancel()`, `reserve()`
+- Private helpers: `markAsConfirmed()`, `markAsCancelled()`
+
+**Domain layer — repository interfaces**: Follow the Spring Data naming contract
+but only for the three required operations. The id-generation method MUST be
+named `next<AggregateId>()`.
+
+- `findBy<Field>(<FieldType> field)` returning `Optional<Aggregate>`
+- `save(<Aggregate> aggregate)` returning `void`
+- `next<AggregateId>()` returning the aggregate's identity type
+
+**Domain layer — domain service factory methods**: Use `<entity>From(<IdType>)`
+(e.g., `hallFrom(HallId hallId)`).
+
+**Application layer — command handler methods**: Use `<verb><Noun>(<Command>)`
+where verb is a domain imperative (e.g., `initiateBooking`, `confirmBooking`,
+`cancelBooking`, `reserveSeat`, `releaseSeat`). The corresponding command type
+is `<VerbNoun>Command` and result type (when non-void) is `<VerbNoun>Result`.
+
+**Application layer — query handler methods**: Singleton lookups MUST use
+`get<Entity>(<Query>)` returning a view type; collection lookups MUST use
+`list<Entities>(<Query>)` returning `List<View>`. Query types follow
+`Get<Entity>Query` / `List<Entities>Query`.
+
+**Infrastructure layer — mapper methods**: Use `to<TargetType>()` for all
+mapping methods regardless of source type. No `from`, `map`, or `convert`
+prefixes.
+
+**Test methods**: MUST follow `<methodUnderTest>With<StateOrInput>Should<ExpectedBehavior>()`.
+The `With<StateOrInput>` segment is omitted only when the state is the single
+obvious happy-path (e.g., `saveShouldSaveBooking()`). Test bodies MUST use
+`// Arrange`, `// Act`, `// Assert` inline comments to delimit sections.
+
+- Happy path: `initiateBookingShouldInitiateBookingAndReturnBookingId()`
+- Alternate state: `confirmWithConfirmedBookingShouldDoNothingAndRaiseNoEvent()`
+- Error path: `confirmWithCancelledBookingShouldThrowBookingException()`
+
+Rationale: consistent naming lets readers locate tests by method name and
+predict behavior before reading the body; the three-segment pattern encodes
+exactly the information needed to triage a failure.
 
 ## Engineering Standards
 
@@ -95,6 +176,42 @@ sample code understandable and production-like.
 - Generated sources under `target/generated-sources` are outputs, not hand-edited
   inputs. Their source OpenAPI documents in `src/main/resources` are the
   authoritative contract.
+
+### JPA Mapping Rules
+
+- ORM mapping MUST be declared in XML files under `META-INF/domain/` (e.g.,
+  `<aggregate>.orm.xml`). Domain classes MUST carry no JPA annotations;
+  persistence metadata belongs exclusively in the ORM XML files.
+- Field-level access (`<access>FIELD</access>`) MUST be used; property-level
+  access is forbidden.
+- Aggregate identity MUST use sequence-based generation
+  (`<generated-value strategy="SEQUENCE"/>`). No `AUTO`, `IDENTITY`, or
+  application-assigned primary keys unless an existing aggregate already
+  establishes a different pattern.
+- All aggregates MUST extend `AggregateRoot`, which provides the `version`
+  column (optimistic locking) and the `raisedEvents` transient collection
+  (mapped as `<transient>`). These MUST NOT be added directly on subclasses.
+- Aggregate persistence MUST go through `saveAndPublishEvents(aggregateId,
+  aggregate)` provided by `JpaAggregateRootSupport`. Direct calls to
+  `CrudRepository.save()` that bypass event publication are forbidden.
+- Value objects embedded in an aggregate MUST be mapped as `<embedded>` with
+  `<attribute-override>` entries. Collections of value objects MUST be mapped as
+  `<element-collection>`; `@OneToMany` / `@ManyToOne` relationships between
+  aggregates are forbidden — aggregates reference each other by embedded identity
+  only.
+- `FetchType.LAZY` is forbidden. All aggregate contents load together with the
+  root. `open-in-view` MUST remain disabled (`spring.jpa.open-in-view=false`).
+- Read queries MUST be named native queries referenced via `@NativeQuery(name =
+  "ViewType.methodName")` and declared in ORM XML. Derived query methods and
+  inline JPQL strings are forbidden.
+- `@Transactional` MUST be declared on the application-layer interface, not on
+  the implementation class. Write interfaces carry `@Transactional`; read
+  interfaces carry `@Transactional(readOnly = true)`. Event handler classes
+  carry `@Transactional` at class level.
+- JPA repository interfaces MUST extend `Repository<Aggregate, Long>` (the
+  minimal Spring Data marker) and the corresponding domain repository interface.
+  They MUST also extend `JpaAggregateRootSupport` to gain event-publishing
+  support. No `JpaRepository` or `CrudRepository` extension is permitted.
 
 ## Delivery Workflow
 
@@ -124,4 +241,4 @@ principles or materially expanded obligations, and PATCH for clarifications that
 do not change enforcement. Ratification records the original adoption date of
 this document; `Last Amended` MUST be updated whenever the constitution changes.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-15
+**Version**: 1.1.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-16
