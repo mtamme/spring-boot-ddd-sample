@@ -1,25 +1,22 @@
 <!--
 Sync Impact Report
-- Version change: 1.2.1 -> 1.3.0
+- Version change: 1.3.0 -> 1.4.0
 - Modified principles:
-  - Principle II: added event-in-constructor rule and equals/hashCode on domain identity rule
-  - Principle VI: added Problem constant naming convention (<STATE>_PROBLEM) and HTTP
-      status mapping (notFound -> 404, conflict -> 409)
-  - Principle VII: added mapper @Component annotation rule and package-private
-      constructor rule for exclusively-owned child entities
+  - Engineering Standards / REST Controller Conventions: absorbed and
+      replaced by the new RESTful API Design section below.
 - Added sections:
-  - Engineering Standards: aggregate structural layout (surrogate key at bottom,
-      protected no-arg JPA constructor, equals/hashCode)
-  - Engineering Standards: REST controller conventions (Operations interface, HTTP
-      status codes)
-  - JPA Mapping Rules: ddl-auto=none, explicit ORM resource enumeration,
-      META-INF/query/ separation for projections, ID generation format
+  - Engineering Standards / RESTful API Design: OpenAPI-first contract,
+      HTTP method semantics, URL naming, nested resources, state-scoped
+      endpoints, pagination, search, ID schema patterns, error responses
+      (RFC 7807), response structure, content negotiation.
 - Removed sections:
-  - None
+  - Engineering Standards / REST Controller Conventions (content migrated
+      to RESTful API Design; no rules lost)
 - Templates requiring updates:
   - ✅ updated .specify/templates/plan-template.md
-      (Constitution Check extended: equals/hashCode, controller Operations interface,
-       Problem naming, ORM enumeration)
+      (Constitution Check item updated to reference new RESTful API Design
+       section: URL conventions, HTTP method semantics, RFC 7807 errors,
+       pagination, search)
   - ✅ no changes required in .specify/templates/spec-template.md
   - ✅ no changes required in .specify/templates/tasks-template.md
   - ✅ no commands directory present at .specify/templates/commands
@@ -263,14 +260,131 @@ concerns clearly subordinate. The `private Long id` field MUST be placed at the
 bottom and MUST NOT participate in `equals()` or `hashCode()`. Both `equals()`
 and `hashCode()` MUST be implemented using the domain identity value object only.
 
-### REST Controller Conventions
+### RESTful API Design
 
-REST controllers MUST be annotated `@RestController` and MUST implement the
-OpenAPI-generated `<Domain>Operations` interface (e.g., `BookingOperations`,
-`ShowOperations`). Controllers MUST inject the relevant command handler, query
-handler, and mapper via constructor injection. HTTP response status codes MUST
-follow: `201 CREATED` for resource creation commands, `204 NO_CONTENT` for void
-domain operations, and `200 OK` for queries.
+#### OpenAPI-First Contract
+
+The OpenAPI YAML document in `src/main/resources/static/` is the sole
+authoritative HTTP contract for each bounded context. Controllers MUST NOT be
+written before the YAML exists. The `openapi-generator-maven-plugin` generates
+`<Domain>Operations` interfaces with `interfaceOnly=true`, `useTags=true`, and
+`apiNameSuffix=Operations`; these generated interfaces MUST NOT be edited by
+hand. REST controllers MUST be annotated `@RestController`, MUST implement the
+generated `<Domain>Operations` interface, and MUST inject command handler, query
+handler, and mapper exclusively via constructor injection.
+
+#### HTTP Method Semantics
+
+HTTP methods MUST map to domain intent as follows:
+
+- `POST` — resource creation (initiates a new aggregate). Returns `201 Created`
+  with a minimal body containing the new resource identifier.
+- `PUT` — idempotent state transition (moves a resource to a named target state).
+  Returns `204 No Content`. No request body; the target state is encoded in the
+  URL path segment (e.g., `PUT /confirmed-bookings/{booking_id}`). Calling the
+  same `PUT` on an already-transitioned resource MUST be safe and return `204`.
+- `DELETE` — cancellation or removal of a resource or sub-resource. Returns
+  `204 No Content`.
+- `GET` — read-only query. Returns `200 OK` with the resource or collection body.
+
+`PATCH` MUST NOT be used. Partial updates are expressed as explicit domain
+state-transition `PUT` operations.
+
+#### URL Path Conventions
+
+- Resource path segments MUST use **plural English nouns** in **kebab-case**
+  (e.g., `/bookings`, `/shows`, `/reserved-seats`, `/confirmed-bookings`).
+- Path parameters MUST use **snake_case** (e.g., `{booking_id}`, `{show_id}`,
+  `{seat_number}`).
+- Ownership relationships MUST be expressed as nested paths:
+  `/{parent-resource}/{parent_id}/{child-resource}` (e.g.,
+  `/shows/{show_id}/bookings`, `/shows/{show_id}/seats`,
+  `/bookings/{booking_id}/reserved-seats/{seat_number}`).
+- Idempotent state transitions whose target state names a specific subset of the
+  resource collection MUST use a **state-scoped collection path** rather than
+  a sub-resource action:
+  `PUT /{state-noun}-{resource}/{resource_id}` (e.g.,
+  `PUT /confirmed-bookings/{booking_id}`,
+  `PUT /redeemed-tickets/{ticket_id}`).
+- Search endpoints MUST use the path prefix `/search/{resource}` (e.g.,
+  `GET /search/shows`) rather than adding filter query parameters to the plain
+  list endpoint.
+
+#### Pagination
+
+All collection endpoints MUST support **offset-limit pagination** using exactly
+these query parameters:
+
+- `offset` — `int64`, minimum `0`, default `0`. The number of records to skip.
+- `limit` — `int32`, minimum `1`, maximum `100`, default `10`. The page size.
+
+Page-based (`page`/`size`) pagination MUST NOT be used.
+
+#### Search
+
+Search endpoints accept a `q` query parameter (`string`, `minLength: 1`,
+`maxLength: 20`, required) alongside the standard `offset`/`limit` parameters.
+The `q` value is passed to the application layer as a filter pattern.
+
+#### ID Schema Patterns
+
+All resource identifiers exposed in the API MUST follow the format
+`<PREFIX>0[0-9A-F]{16}` (18 characters), where the prefix is a single uppercase
+letter identifying the aggregate type:
+
+| Aggregate | Prefix | Pattern example |
+|-----------|--------|-----------------|
+| Booking   | `B`    | `B0FFFFFFFFFFFFFFFF` |
+| Show      | `S`    | `S0FFFFFFFFFFFFFFFF` |
+| Ticket    | `T`    | `T0FFFFFFFFFFFFFFFF` |
+| Movie     | `M`    | `M0FFFFFFFFFFFFFFFF` |
+| Hall      | `H`    | `H0FFFFFFFFFFFFFFFF` |
+
+OpenAPI schema definitions MUST declare a `pattern` constraint for every ID
+field. Seat numbers follow the separate pattern `[A-Z][1-9][0-9]?` (e.g., `A1`,
+`B12`).
+
+#### HTTP Response Status Codes
+
+| Scenario | Status |
+|---|---|
+| Successful resource creation (`POST`) | `201 Created` |
+| Successful state transition (`PUT`) or removal (`DELETE`) | `204 No Content` |
+| Successful retrieval (`GET`) | `200 OK` |
+| Invalid parameters or malformed request | `400 Bad Request` |
+| Resource not found | `404 Not Found` |
+| HTTP method not supported on the path | `405 Method Not Allowed` |
+| Acceptable content type unavailable | `406 Not Acceptable` |
+| Optimistic-locking conflict or duplicate constraint violation | `409 Conflict` |
+| Unhandled server error | `500 Internal Server Error` |
+
+#### Response Body Structure
+
+- **Single-resource responses** (`GET /{resource}/{id}`): flat object with all
+  resource fields; no outer wrapper.
+- **Collection responses** (`GET /{resource}`, `GET /search/{resource}`): wrapper
+  object with a single top-level array property named after the resource plural
+  (e.g., `{ "bookings": [...] }`, `{ "shows": [...] }`).
+- **Creation responses** (`POST`): minimal flat object containing only the
+  generated identifier (e.g., `{ "bookingId": "B0..." }`).
+- **No-content responses** (`PUT` state transitions, `DELETE`): empty body.
+
+#### Error Response Format (RFC 7807)
+
+All error responses MUST use content-type `application/problem+json` and conform
+to RFC 7807 Problem Details with these fields:
+
+- `type` (URI, required) — problem type identifier
+- `title` (string, required) — human-readable summary
+- `status` (integer, required) — HTTP status code
+- `detail` (string, optional) — contextual explanation
+- `instance` (URI, required) — the request URI that triggered the error
+
+The global `ProblemDetailExceptionHandlers` `@RestControllerAdvice` in `seedwork`
+converts all exceptions to Problem Detail responses. No controller-local exception
+handling MUST be added. Endpoints MUST declare `produces: ["application/json",
+"application/problem+json"]` so that error bodies are always delivered in the
+requested format.
 
 ### JPA Mapping Rules
 
@@ -354,4 +468,4 @@ principles or materially expanded obligations, and PATCH for clarifications that
 do not change enforcement. Ratification records the original adoption date of
 this document; `Last Amended` MUST be updated whenever the constitution changes.
 
-**Version**: 1.3.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-20
+**Version**: 1.4.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-20
