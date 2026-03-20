@@ -1,19 +1,22 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.0 -> 1.2.0
+- Version change: 1.2.0 -> 1.2.1
 - Modified principles:
-  - Principle II: expanded with idempotent state-transition rule
-  - Principle VII: expanded with event handler class/method naming,
-      view projection type naming (DetailView/SummaryView),
-      search query method/type naming, and test fixture class naming
+  - Engineering Standards / JPA Mapping Rules:
+    - "FetchType.LAZY is forbidden" corrected: element-collections use JPA
+      default (LAZY); the rule now correctly targets explicit lazy entity
+      associations (OneToMany/ManyToOne), which are forbidden entirely.
+    - "Collections of value objects" corrected to "collections of
+      aggregate-owned domain types" to reflect that Seat (a domain Entity)
+      is mapped as an element-collection embeddable alongside value objects.
+    - Spring Boot version updated from "4" to "4.0.x" for precision.
 - Added sections:
-  - None (all changes are expansions of existing principles)
+  - None
 - Removed sections:
   - None
 - Templates requiring updates:
-  - ✅ updated .specify/templates/plan-template.md
-      (Constitution Check item VII extended with event handler, view,
-       and search-query naming; idempotency note added to item II)
+  - ✅ no changes required in .specify/templates/plan-template.md
+      (Constitution Check item for JPA is implicit in the ORM mapping check)
   - ✅ no changes required in .specify/templates/spec-template.md
   - ✅ no changes required in .specify/templates/tasks-template.md
   - ✅ no commands directory present at .specify/templates/commands
@@ -199,7 +202,7 @@ duplicated state-setup boilerplate and keep test arrange-sections minimal.
 
 ## Engineering Standards
 
-- The repository standard runtime is Java 25, Maven 3.9+, and Spring Boot 4 in a
+- The repository standard runtime is Java 25, Maven 3.9+, and Spring Boot 4.0.x in a
   multi-module build rooted at `pom.xml`.
 - New bounded-context code MUST be added to an existing module or a deliberately
   planned new module; cross-cutting technical concerns belong in `seedwork`, not
@@ -230,13 +233,19 @@ duplicated state-setup boilerplate and keep test arrange-sections minimal.
 - Aggregate persistence MUST go through `saveAndPublishEvents(aggregateId,
   aggregate)` provided by `JpaAggregateRootSupport`. Direct calls to
   `CrudRepository.save()` that bypass event publication are forbidden.
-- Value objects embedded in an aggregate MUST be mapped as `<embedded>` with
-  `<attribute-override>` entries. Collections of value objects MUST be mapped as
-  `<element-collection>`; `@OneToMany` / `@ManyToOne` relationships between
+- Value objects held as a single attribute inside an aggregate MUST be mapped as
+  `<embedded>` with `<attribute-override>` entries. Collections of aggregate-owned
+  domain types — whether exclusively-owned entities (e.g., `Seat` inside `Show`)
+  or value objects — MUST be mapped as `<element-collection>` with the owned type
+  declared as `<embeddable>`; `@OneToMany` / `@ManyToOne` associations between
   aggregates are forbidden — aggregates reference each other by embedded identity
   only.
-- `FetchType.LAZY` is forbidden. All aggregate contents load together with the
-  root. `open-in-view` MUST remain disabled (`spring.jpa.open-in-view=false`).
+- Explicit lazy entity associations are forbidden; `@OneToMany` and `@ManyToOne`
+  between aggregates are replaced by embedded-identity references (see rule above).
+  Element-collections use JPA's default fetch behavior (LAZY) and MUST only be
+  accessed within an active transaction. `open-in-view` MUST remain disabled
+  (`spring.jpa.open-in-view=false`) to prevent lazy loading outside transaction
+  boundaries.
 - Read queries MUST be named native queries referenced via `@NativeQuery(name =
   "ViewType.methodName")` and declared in ORM XML. Derived query methods and
   inline JPQL strings are forbidden.
@@ -277,4 +286,4 @@ principles or materially expanded obligations, and PATCH for clarifications that
 do not change enforcement. Ratification records the original adoption date of
 this document; `Last Amended` MUST be updated whenever the constitution changes.
 
-**Version**: 1.2.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-20
+**Version**: 1.2.1 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-20
