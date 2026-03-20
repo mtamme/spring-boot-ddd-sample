@@ -1,19 +1,22 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 -> 1.1.0
+- Version change: 1.1.0 -> 1.2.0
 - Modified principles:
-  - None modified
+  - Principle II: expanded with idempotent state-transition rule
+  - Principle VII: expanded with event handler class/method naming,
+      view projection type naming (DetailView/SummaryView),
+      search query method/type naming, and test fixture class naming
 - Added sections:
-  - Principle VI. Code Contracts and Exception Design
-  - Principle VII. Naming Conventions
-  - JPA Mapping Rules subsection in Engineering Standards
+  - None (all changes are expansions of existing principles)
 - Removed sections:
   - None
 - Templates requiring updates:
-  - ✅ updated .specify/templates/plan-template.md (Constitution Check extended with VI and VII)
+  - ✅ updated .specify/templates/plan-template.md
+      (Constitution Check item VII extended with event handler, view,
+       and search-query naming; idempotency note added to item II)
   - ✅ no changes required in .specify/templates/spec-template.md
   - ✅ no changes required in .specify/templates/tasks-template.md
-  - ✅ no command templates directory present at .specify/templates/commands
+  - ✅ no commands directory present at .specify/templates/commands
   - ✅ no runtime guidance updates required in README.md
 - Follow-up TODOs:
   - None
@@ -42,8 +45,18 @@ Entities, events, and value objects MUST be modeled as separate concepts; events
 and value objects MUST be immutable; entity state MUST NOT be exposed through
 JavaBean getters or setters. Preconditions and invariants MUST be expressed
 through domain contracts and problem types so invalid states fail fast and
-consistently. Rationale: the current codebase uses contract checks, explicit
-event publication, and rich domain models instead of anemic records.
+consistently.
+
+Aggregate state transitions MUST be idempotent where the target state is already
+reached: after verifying via `Contract.check()` that the precondition allows the
+transition, an early-return guard MUST silently exit when the aggregate is already
+in the target state, so that repeat invocations are safe and raise no spurious
+events. Example: `confirm()` allows INITIATED or CONFIRMED as valid preconditions
+and returns immediately if already CONFIRMED.
+
+Rationale: the current codebase uses contract checks, explicit event publication,
+and rich domain models instead of anemic records; idempotent transitions prevent
+duplicate events and make commands safe to retry.
 
 ### III. Tests Are Mandatory Quality Gates
 
@@ -134,15 +147,30 @@ named `next<AggregateId>()`.
 **Domain layer — domain service factory methods**: Use `<entity>From(<IdType>)`
 (e.g., `hallFrom(HallId hallId)`).
 
+**Application layer — command handler classes**: `<Domain>CommandHandler`
+(interface) and `<Domain>CommandHandlerImpl` (implementation). Write interfaces
+carry `@Transactional`; read interfaces carry `@Transactional(readOnly = true)`.
+
 **Application layer — command handler methods**: Use `<verb><Noun>(<Command>)`
 where verb is a domain imperative (e.g., `initiateBooking`, `confirmBooking`,
 `cancelBooking`, `reserveSeat`, `releaseSeat`). The corresponding command type
 is `<VerbNoun>Command` and result type (when non-void) is `<VerbNoun>Result`.
 
+**Application layer — query handler classes**: `<Domain>QueryHandler` (interface)
+and `Jpa<Domain>QueryHandler` (implementation). Interfaces carry
+`@Transactional(readOnly = true)`.
+
 **Application layer — query handler methods**: Singleton lookups MUST use
-`get<Entity>(<Query>)` returning a view type; collection lookups MUST use
-`list<Entities>(<Query>)` returning `List<View>`. Query types follow
-`Get<Entity>Query` / `List<Entities>Query`.
+`get<Entity>(<Query>)` returning a `<Noun>DetailView`; collection lookups MUST
+use `list<Entities>(<Query>)` returning `List<<Noun>SummaryView>`; filtered or
+sorted lookups MUST use `search<Entities>(<Query>)` returning
+`List<<Noun>SummaryView>`. Query types follow `Get<Entity>Query`,
+`List<Entities>Query`, and `Search<Entities>Query` respectively.
+
+**Application layer — event handler classes**: `<Domain>EventHandler` annotated
+`@Service @Transactional` at class level. Event listener methods MUST be named
+`on<EventType>(EventType event)` and annotated `@EventListener`
+(e.g., `onBookingConfirmed(BookingConfirmed event)`).
 
 **Infrastructure layer — mapper methods**: Use `to<TargetType>()` for all
 mapping methods regardless of source type. No `from`, `map`, or `convert`
@@ -157,9 +185,17 @@ obvious happy-path (e.g., `saveShouldSaveBooking()`). Test bodies MUST use
 - Alternate state: `confirmWithConfirmedBookingShouldDoNothingAndRaiseNoEvent()`
 - Error path: `confirmWithCancelledBookingShouldThrowBookingException()`
 
+**Test fixture classes**: Each aggregate MUST have a companion `<Aggregate>Fixture`
+class in the test source tree. Fixture classes MUST expose `public static` factory
+methods for every named pre-built state (e.g., `BookingFixture.newInitiatedBooking(showId, bookingId)`,
+`BookingFixture.newConfirmedBooking(showId, bookingId)`). Factory methods MUST
+clear raised events via `releaseEvents(Consumers.empty())` so that test assertions
+start from a clean event slate.
+
 Rationale: consistent naming lets readers locate tests by method name and
 predict behavior before reading the body; the three-segment pattern encodes
-exactly the information needed to triage a failure.
+exactly the information needed to triage a failure; fixture classes eliminate
+duplicated state-setup boilerplate and keep test arrange-sections minimal.
 
 ## Engineering Standards
 
@@ -241,4 +277,4 @@ principles or materially expanded obligations, and PATCH for clarifications that
 do not change enforcement. Ratification records the original adoption date of
 this document; `Last Amended` MUST be updated whenever the constitution changes.
 
-**Version**: 1.1.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-16
+**Version**: 1.2.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-20
