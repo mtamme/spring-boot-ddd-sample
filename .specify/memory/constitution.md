@@ -1,22 +1,26 @@
 <!--
 Sync Impact Report
-- Version change: 1.3.0 -> 1.4.0
-- Modified principles:
-  - Engineering Standards / REST Controller Conventions: absorbed and
-      replaced by the new RESTful API Design section below.
+- Version change: 1.4.0 -> 1.5.0
+- Modified principles: none
 - Added sections:
-  - Engineering Standards / RESTful API Design: OpenAPI-first contract,
-      HTTP method semantics, URL naming, nested resources, state-scoped
-      endpoints, pagination, search, ID schema patterns, error responses
-      (RFC 7807), response structure, content negotiation.
-- Removed sections:
-  - Engineering Standards / REST Controller Conventions (content migrated
-      to RESTful API Design; no rules lost)
+  - Core Principles / VIII. Aggregates Communicate Exclusively Through
+      Domain Events: cross-aggregate identity-only references, event-driven
+      side effects, load-invoke-save event handler pattern, abstract base
+      event hierarchy, minimal event payload rule.
+  - Engineering Standards / CQRS and Application-Layer Orchestration:
+      command/query path separation, command handler load-invoke-save with
+      no business logic, query handler view projections via named native
+      queries, event handler placement in application layer, application
+      and infrastructure package structure conventions.
+  - Engineering Standards / Test Infrastructure Conventions: PersistenceTest
+      and ControllerTest base classes, separate-transaction persistence
+      verification, MockitoBean controller isolation, mocked-repository
+      application-layer unit tests.
+- Removed sections: none
 - Templates requiring updates:
   - ✅ updated .specify/templates/plan-template.md
-      (Constitution Check item updated to reference new RESTful API Design
-       section: URL conventions, HTTP method semantics, RFC 7807 errors,
-       pagination, search)
+      (Constitution Check: three new items for cross-aggregate events,
+       CQRS separation, and test infrastructure)
   - ✅ no changes required in .specify/templates/spec-template.md
   - ✅ no changes required in .specify/templates/tasks-template.md
   - ✅ no commands directory present at .specify/templates/commands
@@ -226,6 +230,35 @@ Rationale: consistent naming lets readers locate tests by method name and
 predict behavior before reading the body; the three-segment pattern encodes
 exactly the information needed to triage a failure; fixture classes eliminate
 duplicated state-setup boilerplate and keep test arrange-sections minimal.
+
+### VIII. Aggregates Communicate Exclusively Through Domain Events
+
+An aggregate MUST NOT hold direct object references to, or invoke behavior on,
+another aggregate. Cross-aggregate references MUST use identity value objects
+only (e.g., `Booking` holds a `ShowId`, not a `Show` reference). Cross-aggregate
+side effects MUST be triggered exclusively through domain events: the originating
+aggregate raises an event, its repository publishes the event on save via
+`saveAndPublishEvents`, and an application-layer event handler coordinates the
+reaction on the target aggregate.
+
+Event handlers MUST follow the load-invoke-save pattern: load the target
+aggregate(s) from repositories, invoke a single domain method, and save the
+aggregate back through its repository (which publishes any further events raised
+by the target). Event handlers MUST NOT contain business logic; all domain
+behavior MUST reside in the aggregate's domain methods.
+
+Each aggregate MUST define an abstract base event class (e.g., `BookingEvent`)
+implementing the seedwork `Event` interface. All concrete events for that
+aggregate MUST extend the base class. Event fields MUST be final and validated
+via `Contract.require()` in the base constructor. Events MUST carry only identity
+values and the minimal primitive data required by listeners; they MUST NOT embed
+full aggregate state or mutable references.
+
+Rationale: the booking bounded context orchestrates the full
+booking-confirmation → seat-booking → ticket-issuance flow entirely through
+events and application-layer event handlers; enforcing this pattern prevents
+coupling between aggregates and keeps each aggregate's transactional boundary
+independent.
 
 ## Engineering Standards
 
@@ -440,6 +473,62 @@ requested format.
   They MUST also extend `JpaAggregateRootSupport` to gain event-publishing
   support. No `JpaRepository` or `CrudRepository` extension is permitted.
 
+### CQRS and Application-Layer Orchestration
+
+The application layer MUST maintain strict separation between command (write)
+and query (read) paths.
+
+**Command path**: Command handler interfaces (`<Domain>CommandHandler`) and their
+`@Service` implementations (`<Domain>CommandHandlerImpl`) accept single command
+records and follow the load-invoke-save pattern: load aggregate(s) from
+repositories, invoke domain methods, and save through repositories. Command
+handlers MUST NOT contain business logic; they orchestrate domain operations
+only.
+
+**Query path**: Query handler interfaces (`<Domain>QueryHandler`) and their
+infrastructure implementations (`Jpa<Domain>QueryHandler`) return view projection
+records (`<Noun>DetailView`, `<Noun>SummaryView`). Query handlers MUST NOT load
+full aggregates for read operations; they MUST use dedicated named native queries
+that return projection types directly.
+
+**Event handler path**: Event handler classes (`<Domain>EventHandler`) MUST live
+in the application layer alongside command and query handlers. They coordinate
+reactions to domain events from other aggregates by following the same
+load-invoke-save pattern as command handlers.
+
+**Application package structure**: Each aggregate's application package MUST be
+organized as:
+
+- `application/<aggregate>/` — handler interfaces, implementations, and event
+  handlers
+- `application/<aggregate>/command/` — command records and result records
+- `application/<aggregate>/query/` — query records and view projection records
+
+**Infrastructure package structure**: Infrastructure implementations supporting
+CQRS MUST be organized as:
+
+- `infrastructure/persistence/<aggregate>/` — JPA repository and query handler
+  implementations
+- `infrastructure/web/<aggregate>/` — REST controller and response mapper
+- `infrastructure/service/<service>/` — domain service adapter implementations
+
+### Test Infrastructure Conventions
+
+Persistence integration tests MUST extend the shared `PersistenceTest` base class
+(from seedwork) and use `@SpringBootTest(webEnvironment = NONE)`. Persistence
+tests MUST perform writes and reads in separate transactions to verify actual
+persistence rather than first-level cache hits.
+
+Controller integration tests MUST extend the shared `ControllerTest` base class
+(from seedwork) and use `@SpringBootTest(webEnvironment = RANDOM_PORT)`. Handler
+dependencies in controller tests MUST be replaced with `@MockitoBean` to isolate
+the web layer from application logic.
+
+Application-layer unit tests MUST use `@ExtendWith(MockitoExtension.class)` with
+mocked repository dependencies. Repository interactions MUST be verified through
+argument captures or mock verifications to confirm correct aggregate state
+changes and save calls.
+
 ## Delivery Workflow
 
 - Plans MUST identify affected modules, affected layers, required tests, API or
@@ -468,4 +557,4 @@ principles or materially expanded obligations, and PATCH for clarifications that
 do not change enforcement. Ratification records the original adoption date of
 this document; `Last Amended` MUST be updated whenever the constitution changes.
 
-**Version**: 1.4.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-20
+**Version**: 1.5.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-20
