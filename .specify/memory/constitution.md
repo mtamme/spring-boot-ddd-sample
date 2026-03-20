@@ -1,22 +1,25 @@
 <!--
 Sync Impact Report
-- Version change: 1.2.0 -> 1.2.1
+- Version change: 1.2.1 -> 1.3.0
 - Modified principles:
-  - Engineering Standards / JPA Mapping Rules:
-    - "FetchType.LAZY is forbidden" corrected: element-collections use JPA
-      default (LAZY); the rule now correctly targets explicit lazy entity
-      associations (OneToMany/ManyToOne), which are forbidden entirely.
-    - "Collections of value objects" corrected to "collections of
-      aggregate-owned domain types" to reflect that Seat (a domain Entity)
-      is mapped as an element-collection embeddable alongside value objects.
-    - Spring Boot version updated from "4" to "4.0.x" for precision.
+  - Principle II: added event-in-constructor rule and equals/hashCode on domain identity rule
+  - Principle VI: added Problem constant naming convention (<STATE>_PROBLEM) and HTTP
+      status mapping (notFound -> 404, conflict -> 409)
+  - Principle VII: added mapper @Component annotation rule and package-private
+      constructor rule for exclusively-owned child entities
 - Added sections:
-  - None
+  - Engineering Standards: aggregate structural layout (surrogate key at bottom,
+      protected no-arg JPA constructor, equals/hashCode)
+  - Engineering Standards: REST controller conventions (Operations interface, HTTP
+      status codes)
+  - JPA Mapping Rules: ddl-auto=none, explicit ORM resource enumeration,
+      META-INF/query/ separation for projections, ID generation format
 - Removed sections:
   - None
 - Templates requiring updates:
-  - ✅ no changes required in .specify/templates/plan-template.md
-      (Constitution Check item for JPA is implicit in the ORM mapping check)
+  - ✅ updated .specify/templates/plan-template.md
+      (Constitution Check extended: equals/hashCode, controller Operations interface,
+       Problem naming, ORM enumeration)
   - ✅ no changes required in .specify/templates/spec-template.md
   - ✅ no changes required in .specify/templates/tasks-template.md
   - ✅ no commands directory present at .specify/templates/commands
@@ -36,9 +39,15 @@ contexts such as `booking`, dependencies MUST follow
 dependencies MUST follow `infrastructure -> domain -> core`. Domain classes MUST
 remain technology-agnostic and MUST NOT depend on web, persistence, messaging,
 or framework-specific delivery concerns beyond the narrowly approved Spring
-stereotypes already enforced by architecture tests. Rationale: the repository is
-structured around DDD modules and ArchUnit rules; architectural drift would break
-the sample's primary teaching goal.
+stereotypes already enforced by architecture tests.
+
+The domain layer MUST contain only the following concept types: classes
+implementing `Entity`, `Event`, or `ValueObject`; `@Service`-annotated domain
+service classes; `ProblemException` subclasses; and interfaces. No other class
+types are permitted in the domain layer.
+
+Rationale: the repository is structured around DDD modules and ArchUnit rules;
+architectural drift would break the sample's primary teaching goal.
 
 ### II. Domain Behavior Is Encapsulated
 
@@ -46,9 +55,20 @@ Business rules MUST be implemented in entities, value objects, domain services,
 and domain events rather than in controllers, repositories, or transport DTOs.
 Entities, events, and value objects MUST be modeled as separate concepts; events
 and value objects MUST be immutable; entity state MUST NOT be exposed through
-JavaBean getters or setters. Preconditions and invariants MUST be expressed
-through domain contracts and problem types so invalid states fail fast and
-consistently.
+JavaBean getters or setters.
+
+Domain events representing creation facts MUST be raised in the aggregate
+constructor immediately after initial state is set (e.g., `Booking` constructor
+calls `raiseEvent(new BookingInitiated(...))`). Raising creation events in
+factory or service methods is forbidden.
+
+Every entity and aggregate MUST implement `equals()` and `hashCode()` using its
+domain identity value object (e.g., `bookingId`, `showId`, `ticketId`). The JPA
+surrogate key (`private Long id`) MUST NOT participate in equality or hash
+computation.
+
+Preconditions and invariants MUST be expressed through domain contracts and
+problem types so invalid states fail fast and consistently.
 
 Aggregate state transitions MUST be idempotent where the target state is already
 reached: after verifying via `Contract.check()` that the precondition allows the
@@ -116,9 +136,13 @@ frameworks, or ad hoc null checks are permitted as replacements.
   cancelable).
 
 Domain exceptions MUST extend `ProblemException`. Each error case MUST be
-represented by a `public static final Problem` constant on the exception class.
-Instances MUST be created only through `public static` factory methods (e.g.,
-`BookingException.notFound()`) — constructors MUST be private. Exception factory
+represented by a `public static final Problem` constant named
+`<SCREAMING_SNAKE_CASE>_PROBLEM` (e.g., `NOT_FOUND_PROBLEM`,
+`NOT_CANCELABLE_PROBLEM`). Resource-not-found errors MUST use `Problem.notFound()`
+which maps to HTTP 404; business-state violations MUST use `Problem.conflict()`
+which maps to HTTP 409. Instances MUST be created only through `public static`
+factory methods whose names match the problem suffix in lowerCamelCase (e.g.,
+`notFound()`, `notCancelable()`) — constructors MUST be private. Exception factory
 methods MUST be passable as method references so they can be used directly in
 `Contract.check(condition, BookingException::notCancelable)`. Rationale: uniform
 contract usage makes invariant enforcement visible and grep-able; the
@@ -175,9 +199,10 @@ sorted lookups MUST use `search<Entities>(<Query>)` returning
 `on<EventType>(EventType event)` and annotated `@EventListener`
 (e.g., `onBookingConfirmed(BookingConfirmed event)`).
 
-**Infrastructure layer — mapper methods**: Use `to<TargetType>()` for all
-mapping methods regardless of source type. No `from`, `map`, or `convert`
-prefixes.
+**Infrastructure layer — mapper classes**: Annotated `@Component` (not
+`@Service`). Public methods use `to<ResponseType>(<ViewType>)` for all mapping
+operations. Private helper methods for nested collections follow the same
+`to<NestedType>(list)` pattern. No `from`, `map`, or `convert` prefixes.
 
 **Test methods**: MUST follow `<methodUnderTest>With<StateOrInput>Should<ExpectedBehavior>()`.
 The `With<StateOrInput>` segment is omitted only when the state is the single
@@ -194,6 +219,11 @@ methods for every named pre-built state (e.g., `BookingFixture.newInitiatedBooki
 `BookingFixture.newConfirmedBooking(showId, bookingId)`). Factory methods MUST
 clear raised events via `releaseEvents(Consumers.empty())` so that test assertions
 start from a clean event slate.
+
+**Domain-owned child entities** (entities exclusively owned by an aggregate root,
+e.g., `Seat` inside `Show`): their primary constructor MUST be package-private
+so that only aggregate-root methods within the same package can instantiate them.
+A `protected` no-arg constructor for JPA MUST also be provided.
 
 Rationale: consistent naming lets readers locate tests by method name and
 predict behavior before reading the body; the three-segment pattern encodes
@@ -215,6 +245,32 @@ duplicated state-setup boilerplate and keep test arrange-sections minimal.
 - Generated sources under `target/generated-sources` are outputs, not hand-edited
   inputs. Their source OpenAPI documents in `src/main/resources` are the
   authoritative contract.
+
+### Aggregate Class Layout
+
+Every aggregate and entity class MUST follow this top-to-bottom ordering:
+
+1. Domain fields (the aggregate's meaningful state)
+2. Public constructor(s) and factory methods (domain creation logic, including
+   `raiseEvent()` for creation events)
+3. Public accessor and command methods (domain behavior)
+4. Private helpers (`markAs<State>()`, `seat()`, etc.)
+5. JPA infrastructure: `private Long id` surrogate key field, then `protected`
+   no-arg constructor
+
+This ordering keeps domain logic visually prominent and makes JPA persistence
+concerns clearly subordinate. The `private Long id` field MUST be placed at the
+bottom and MUST NOT participate in `equals()` or `hashCode()`. Both `equals()`
+and `hashCode()` MUST be implemented using the domain identity value object only.
+
+### REST Controller Conventions
+
+REST controllers MUST be annotated `@RestController` and MUST implement the
+OpenAPI-generated `<Domain>Operations` interface (e.g., `BookingOperations`,
+`ShowOperations`). Controllers MUST inject the relevant command handler, query
+handler, and mapper via constructor injection. HTTP response status codes MUST
+follow: `201 CREATED` for resource creation commands, `204 NO_CONTENT` for void
+domain operations, and `200 OK` for queries.
 
 ### JPA Mapping Rules
 
@@ -249,6 +305,18 @@ duplicated state-setup boilerplate and keep test arrange-sections minimal.
 - Read queries MUST be named native queries referenced via `@NativeQuery(name =
   "ViewType.methodName")` and declared in ORM XML. Derived query methods and
   inline JPQL strings are forbidden.
+- Query projection view types MUST be declared in separate ORM XML files under
+  `META-INF/query/` (e.g., `META-INF/query/booking.orm.xml`) rather than mixed
+  into the domain ORM files in `META-INF/domain/`.
+- All ORM mapping resources MUST be explicitly enumerated in
+  `spring.jpa.mapping-resources`; classpath scanning for ORM descriptors is
+  forbidden.
+- `spring.jpa.hibernate.ddl-auto` MUST be set to `none`; all schema evolution
+  is managed exclusively by Flyway migrations.
+- String-formatted aggregate IDs MUST be generated using
+  `RandomSupport.nextLong()` formatted as `"<PREFIX>0%016X"` where the prefix is
+  a single uppercase letter identifying the aggregate type (e.g., `B0` for
+  Booking, `T0` for Ticket).
 - `@Transactional` MUST be declared on the application-layer interface, not on
   the implementation class. Write interfaces carry `@Transactional`; read
   interfaces carry `@Transactional(readOnly = true)`. Event handler classes
@@ -286,4 +354,4 @@ principles or materially expanded obligations, and PATCH for clarifications that
 do not change enforcement. Ratification records the original adoption date of
 this document; `Last Amended` MUST be updated whenever the constitution changes.
 
-**Version**: 1.2.1 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-20
+**Version**: 1.3.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-20

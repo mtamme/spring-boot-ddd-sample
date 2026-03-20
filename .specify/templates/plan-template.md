@@ -31,13 +31,13 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- [ ] Module and layer impact is explicit (`booking`: `infrastructure -> application -> domain`; `seedwork`: `infrastructure -> domain -> core`).
-- [ ] Domain changes keep business rules in domain types and preserve entity/event/value-object modeling rules.
+- [ ] Module and layer impact is explicit (`booking`: `infrastructure -> application -> domain`; `seedwork`: `infrastructure -> domain -> core`); domain layer contains only Entity/Event/ValueObject types, @Service domain services, ProblemException subclasses, and interfaces.
+- [ ] Domain changes keep business rules in domain types; new aggregates raise creation events in the constructor; `equals()`/`hashCode()` use domain identity, not surrogate key; `private Long id` and `protected` no-arg constructor are at the bottom of each aggregate class.
 - [ ] Required automated tests are identified for every touched layer, including ArchUnit when structure changes.
-- [ ] OpenAPI specs, Flyway migrations, ORM/query mappings, and generated interfaces are accounted for when contracts or persistence change.
+- [ ] OpenAPI specs, Flyway migrations, domain ORM XMLs (`META-INF/domain/`), query projection ORM XMLs (`META-INF/query/`), and generated interfaces are accounted for when contracts or persistence change; ORM resources are explicitly listed in `spring.jpa.mapping-resources`.
 - [ ] Performance budget is documented, including endpoint/query latency target, bounded result expectations, and any N+1 or chatty-call risks.
-- [ ] All precondition checks use `Contract.require()` and all invariant checks use `Contract.check()`; domain exceptions extend `ProblemException` with static factory methods; idempotent state transitions use an early-return guard after the `Contract.check()`.
-- [ ] Naming follows layer conventions: noun accessors and `is<State>()` predicates in domain; `<verb><Noun>(<Command>)` in command handlers; `get<Entity>` / `list<Entities>` / `search<Entities>` in query handlers; `on<EventType>` in event handlers; `<Noun>DetailView` / `<Noun>SummaryView` for view projections; `to<TargetType>()` in mappers; `<method>With<State>Should<Behavior>()` in tests; `<Aggregate>Fixture` factory methods in test fixtures.
+- [ ] All precondition checks use `Contract.require()` and all invariant checks use `Contract.check()`; domain exceptions extend `ProblemException` with `<STATE>_PROBLEM` constants; `notFound()` uses `Problem.notFound()` (HTTP 404), state violations use `Problem.conflict()` (HTTP 409); idempotent state transitions use an early-return guard after the `Contract.check()`.
+- [ ] Naming follows layer conventions: noun accessors and `is<State>()` predicates in domain; `<verb><Noun>(<Command>)` in command handlers; `get<Entity>` / `list<Entities>` / `search<Entities>` in query handlers; `on<EventType>` in event handlers; `<Noun>DetailView` / `<Noun>SummaryView` for view projections; `to<TargetType>()` in `@Component` mappers; `<method>With<State>Should<Behavior>()` in tests; `<Aggregate>Fixture` factory methods in test fixtures; REST controllers implement `<Domain>Operations` and return 201/204/200.
 
 ## Project Structure
 
