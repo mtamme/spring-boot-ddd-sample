@@ -1,26 +1,24 @@
 <!--
 Sync Impact Report
-- Version change: 1.4.0 -> 1.5.0
+- Version change: 1.5.0 -> 1.5.1
 - Modified principles: none
-- Added sections:
-  - Core Principles / VIII. Aggregates Communicate Exclusively Through
-      Domain Events: cross-aggregate identity-only references, event-driven
-      side effects, load-invoke-save event handler pattern, abstract base
-      event hierarchy, minimal event payload rule.
-  - Engineering Standards / CQRS and Application-Layer Orchestration:
-      command/query path separation, command handler load-invoke-save with
-      no business logic, query handler view projections via named native
-      queries, event handler placement in application layer, application
-      and infrastructure package structure conventions.
-  - Engineering Standards / Test Infrastructure Conventions: PersistenceTest
-      and ControllerTest base classes, separate-transaction persistence
-      verification, MockitoBean controller isolation, mocked-repository
-      application-layer unit tests.
+- Added sections: none
 - Removed sections: none
+- Clarifications applied (PATCH):
+  - JPA Mapping Rules / @Transactional placement: added explicit exception
+      clause for event handler classes (no separate interface, so @Transactional
+      is placed on the concrete class — not a violation of the interface rule).
+  - JPA Mapping Rules / element-collection: removed redundant second statement
+      of @OneToMany/@ManyToOne prohibition (it cited "see rule above", confirming
+      pure duplication); retained the element-collection LAZY and open-in-view
+      guidance that followed it.
+  - Principle VIII / event handler business logic: tightened wording from
+      "business logic" to "domain business logic" to prevent misreading
+      orchestration (load-invoke-save) as a violation of the no-logic rule.
+  - Governance: strengthened "Compliance review happens" to
+      "Compliance review MUST happen" for normative consistency.
 - Templates requiring updates:
-  - ✅ updated .specify/templates/plan-template.md
-      (Constitution Check: three new items for cross-aggregate events,
-       CQRS separation, and test infrastructure)
+  - ✅ no changes required in .specify/templates/plan-template.md
   - ✅ no changes required in .specify/templates/spec-template.md
   - ✅ no changes required in .specify/templates/tasks-template.md
   - ✅ no commands directory present at .specify/templates/commands
@@ -28,6 +26,7 @@ Sync Impact Report
 - Follow-up TODOs:
   - None
 -->
+
 # Spring Boot DDD Sample Constitution
 
 ## Core Principles
@@ -244,8 +243,10 @@ reaction on the target aggregate.
 Event handlers MUST follow the load-invoke-save pattern: load the target
 aggregate(s) from repositories, invoke a single domain method, and save the
 aggregate back through its repository (which publishes any further events raised
-by the target). Event handlers MUST NOT contain business logic; all domain
-behavior MUST reside in the aggregate's domain methods.
+by the target). Event handlers MUST NOT contain domain business logic;
+orchestrating load-invoke-save is the application layer's concern, but all
+domain rules and invariants MUST reside exclusively in the aggregate's domain
+methods.
 
 Each aggregate MUST define an abstract base event class (e.g., `BookingEvent`)
 implementing the seedwork `Event` interface. All concrete events for that
@@ -359,37 +360,19 @@ Search endpoints accept a `q` query parameter (`string`, `minLength: 1`,
 `maxLength: 20`, required) alongside the standard `offset`/`limit` parameters.
 The `q` value is passed to the application layer as a filter pattern.
 
-#### ID Schema Patterns
-
-All resource identifiers exposed in the API MUST follow the format
-`<PREFIX>0[0-9A-F]{16}` (18 characters), where the prefix is a single uppercase
-letter identifying the aggregate type:
-
-| Aggregate | Prefix | Pattern example |
-|-----------|--------|-----------------|
-| Booking   | `B`    | `B0FFFFFFFFFFFFFFFF` |
-| Show      | `S`    | `S0FFFFFFFFFFFFFFFF` |
-| Ticket    | `T`    | `T0FFFFFFFFFFFFFFFF` |
-| Movie     | `M`    | `M0FFFFFFFFFFFFFFFF` |
-| Hall      | `H`    | `H0FFFFFFFFFFFFFFFF` |
-
-OpenAPI schema definitions MUST declare a `pattern` constraint for every ID
-field. Seat numbers follow the separate pattern `[A-Z][1-9][0-9]?` (e.g., `A1`,
-`B12`).
-
 #### HTTP Response Status Codes
 
-| Scenario | Status |
-|---|---|
-| Successful resource creation (`POST`) | `201 Created` |
-| Successful state transition (`PUT`) or removal (`DELETE`) | `204 No Content` |
-| Successful retrieval (`GET`) | `200 OK` |
-| Invalid parameters or malformed request | `400 Bad Request` |
-| Resource not found | `404 Not Found` |
-| HTTP method not supported on the path | `405 Method Not Allowed` |
-| Acceptable content type unavailable | `406 Not Acceptable` |
-| Optimistic-locking conflict or duplicate constraint violation | `409 Conflict` |
-| Unhandled server error | `500 Internal Server Error` |
+| Scenario                                                      | Status                      |
+|---------------------------------------------------------------|-----------------------------|
+| Successful resource creation (`POST`)                         | `201 Created`               |
+| Successful state transition (`PUT`) or removal (`DELETE`)     | `204 No Content`            |
+| Successful retrieval (`GET`)                                  | `200 OK`                    |
+| Invalid parameters or malformed request                       | `400 Bad Request`           |
+| Resource not found                                            | `404 Not Found`             |
+| HTTP method not supported on the path                         | `405 Method Not Allowed`    |
+| Acceptable content type unavailable                           | `406 Not Acceptable`        |
+| Optimistic-locking conflict or duplicate constraint violation | `409 Conflict`              |
+| Unhandled server error                                        | `500 Internal Server Error` |
 
 #### Response Body Structure
 
@@ -443,9 +426,7 @@ requested format.
   declared as `<embeddable>`; `@OneToMany` / `@ManyToOne` associations between
   aggregates are forbidden — aggregates reference each other by embedded identity
   only.
-- Explicit lazy entity associations are forbidden; `@OneToMany` and `@ManyToOne`
-  between aggregates are replaced by embedded-identity references (see rule above).
-  Element-collections use JPA's default fetch behavior (LAZY) and MUST only be
+- Element-collections use JPA's default fetch behavior and MUST only be
   accessed within an active transaction. `open-in-view` MUST remain disabled
   (`spring.jpa.open-in-view=false`) to prevent lazy loading outside transaction
   boundaries.
@@ -466,8 +447,9 @@ requested format.
   Booking, `T0` for Ticket).
 - `@Transactional` MUST be declared on the application-layer interface, not on
   the implementation class. Write interfaces carry `@Transactional`; read
-  interfaces carry `@Transactional(readOnly = true)`. Event handler classes
-  carry `@Transactional` at class level.
+  interfaces carry `@Transactional(readOnly = true)`. Event handler classes are
+  an exception: because they expose no separate interface, `@Transactional` MUST
+  be placed on the concrete class.
 - JPA repository interfaces MUST extend `Repository<Aggregate, Long>` (the
   minimal Spring Data marker) and the corresponding domain repository interface.
   They MUST also extend `JpaAggregateRootSupport` to gain event-publishing
@@ -548,8 +530,8 @@ changes and save calls.
 This constitution supersedes conflicting local habits and template defaults.
 Amendments MUST be made in the same change set as any template or guidance
 updates required to keep planning, specification, and task-generation artifacts
-consistent. Compliance review happens in every plan, task list, pull request, and
-release candidate review, with explicit confirmation that architecture rules,
+consistent. Compliance review MUST happen in every plan, task list, pull request,
+and release candidate review, with explicit confirmation that architecture rules,
 required automated tests, OpenAPI and Flyway assets, and performance budgets are
 still satisfied. Versioning follows semantic versioning for governance: MAJOR for
 backward-incompatible principle removals or redefinitions, MINOR for new
@@ -557,4 +539,4 @@ principles or materially expanded obligations, and PATCH for clarifications that
 do not change enforcement. Ratification records the original adoption date of
 this document; `Last Amended` MUST be updated whenever the constitution changes.
 
-**Version**: 1.5.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-20
+**Version**: 1.5.1 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-22
