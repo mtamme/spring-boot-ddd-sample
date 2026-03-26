@@ -256,6 +256,187 @@ With multiple developers:
 
 ---
 
+## Phase 7: Constitution v1.6.0 Adaptation — Foundational
+
+**Purpose**: Adapt the existing implementation to comply with constitution v1.6.0 changes: (1) Clock injection rule — no direct `Instant.now()` calls in production or test code, (2) POST collection resource URI requirement for the agent endpoint.
+
+**Context**: Constitution v1.6.0 added two rules:
+- **Clock and Time Access**: All production code requiring current time MUST use the auto-configured `Clock` bean; direct `Instant.now()` is forbidden. Tests MUST use fixed `Clock`.
+- **POST Collection Resource**: POST MUST target a collection resource URI (e.g., `POST /scheduling/agent/messages`), never an individual resource or action endpoint.
+
+**⚠️ CRITICAL**: No user story adaptation work can begin until this phase is complete.
+
+### Domain — Clock Adaptation
+
+- [X] T065 Update `Show` constructor in `scheduling/src/main/java/com/github/scheduling/domain/show/Show.java`: add `Instant now` parameter after `Hall hall`. Add `Contract.require(now != null)` precondition. Change validation from `Contract.check(scheduledAt.isAfter(Instant.now()), ShowException::pastSchedule)` to `Contract.check(scheduledAt.isAfter(now), ShowException::pastSchedule)`. The `now` parameter is transient — it is not stored as a field, only used for validation.
+
+### Test Infrastructure — Fixed Clock
+
+- [X] T066 [P] Update `ShowFixture.newShow(String showId)` in `scheduling/src/test/java/com/github/scheduling/domain/show/ShowFixture.java`: replace `Instant.now()` with a hardcoded fixed instant. Define `private static final Instant NOW = Instant.parse("2026-01-01T00:00:00Z")` and use `NOW.plus(7, ChronoUnit.DAYS)` for `scheduledAt`. Pass `NOW` as the `now` parameter to the Show constructor.
+
+- [X] T067 [P] Create `FixedClockConfiguration` at `scheduling/src/test/java/com/github/scheduling/infrastructure/FixedClockConfiguration.java`: annotate with `@org.springframework.boot.test.context.TestConfiguration`, define `@Bean Clock clock()` returning `Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC)`. This overrides the seedwork `ClockAutoConfiguration` bean in integration tests.
+
+- [X] T068 [P] Update `PersistenceTest` base class at `scheduling/src/test/java/com/github/scheduling/infrastructure/persistence/PersistenceTest.java`: add `@org.springframework.context.annotation.Import(FixedClockConfiguration.class)` so all persistence integration tests use the fixed Clock bean.
+
+- [X] T069 [P] Update `ControllerTest` base class at `scheduling/src/test/java/com/github/scheduling/infrastructure/web/ControllerTest.java`: add `@org.springframework.context.annotation.Import(FixedClockConfiguration.class)` so all controller integration tests use the fixed Clock bean.
+
+### OpenAPI Contract — POST Collection Resource
+
+- [X] T070 Update the OpenAPI specification at `scheduling/src/main/resources/static/scheduling-openapi.yaml`: rename path `/scheduling/agent` to `/scheduling/agent/messages` and change the success response from `'200'` to `'201'` with description `Agent message created`.
+
+- [X] T071 Regenerate OpenAPI interfaces by running `mvn -B generate-sources -pl scheduling` from the repository root. Verify the generated `AgentOperations` interface reflects the new path `/scheduling/agent/messages` and `201` response code.
+
+**Checkpoint**: Show constructor accepts `Instant now`, test fixtures use fixed instants, integration tests have fixed Clock bean, OpenAPI contract updated with collection resource URI
+
+---
+
+## Phase 8: Constitution v1.6.0 Adaptation — US1: Schedule a Show via AI Agent
+
+**Goal**: Adapt the command handler to inject the `Clock` bean and pass `clock.instant()` to the Show constructor. Update the agent controller to return `201 Created` from the new collection resource path.
+
+**Independent Test**: Invoke `scheduleShow` via command handler with mocked Clock → Show persisted → ShowScheduled event raised with correct time. POST to `/scheduling/agent/messages` → `201` response.
+
+### Tests for US1 Adaptation ⚠️
+
+> **NOTE: Update these tests FIRST, ensure they FAIL before implementation changes**
+
+- [X] T072 [P] [US1] Update `ShowTest` in `scheduling/src/test/java/com/github/scheduling/domain/show/ShowTest.java`: in `constructorShouldCreateShowAndRaiseShowScheduledEvent`, define `final var now = Instant.parse("2026-01-01T00:00:00Z")` and `scheduledAt = now.plus(7, ChronoUnit.DAYS)`, pass `now` to `new Show(showId, scheduledAt, movie, hall, now)`. In `constructorWithPastScheduledAtShouldThrowShowException`, define `final var now = Instant.parse("2026-01-01T00:00:00Z")` and `pastScheduledAt = now.minus(1, ChronoUnit.DAYS)`, pass `now`. Add new test `constructorWithNullNowShouldThrowIllegalArgumentException` verifying the `Contract.require(now != null)` precondition throws `IllegalArgumentException`.
+
+- [X] T073 [P] [US1] Update `ShowCommandHandlerImplTest` in `scheduling/src/test/java/com/github/scheduling/application/show/ShowCommandHandlerImplTest.java`: add `@Mock private Clock clock` field. In `scheduleShowShouldScheduleShow`, add `when(clock.instant()).thenReturn(Instant.parse("2026-01-01T00:00:00Z"))` and set `scheduledAt` to a fixed future instant (`Instant.parse("2026-01-08T00:00:00Z")`). Pass `clock` as the last constructor argument to `new ShowCommandHandlerImpl(showRepository, movieService, hallService, showSchedulingPolicy, clock)`. Same pattern in `scheduleShowWithOverlapShouldThrowShowException`.
+
+### Implementation for US1 Adaptation
+
+- [X] T074 [US1] Update `ShowCommandHandlerImpl` in `scheduling/src/main/java/com/github/scheduling/application/show/ShowCommandHandlerImpl.java`: add `private final Clock clock` field. Add `Clock clock` as the last parameter in the constructor. In `scheduleShow()`, add `final var now = clock.instant()` and pass `now` as the last argument to `new Show(showRepository.nextShowId(), command.scheduledAt(), movie, hall, now)`.
+
+- [X] T075 [US1] Update `AgentController` in `scheduling/src/main/java/com/github/scheduling/infrastructure/web/agent/AgentController.java`: change the return statement from `ResponseEntity.ok(new AgentMessageResponse().response(response))` to `ResponseEntity.status(HttpStatus.CREATED).body(new AgentMessageResponse().response(response))`. Verify the controller still compiles against the regenerated `AgentOperations` interface from T071.
+
+- [X] T076 [US1] Verify US1 adaptation tests pass: run `mvn -B test -pl scheduling -Dtest="ShowTest,ShowCommandHandlerImplTest"` from the repository root.
+
+**Checkpoint**: Core scheduling command path uses Clock injection, agent endpoint returns 201 from collection resource URI
+
+---
+
+## Phase 9: Constitution v1.6.0 Adaptation — US2: Query Available Halls and Movies
+
+**Goal**: Verify hall and movie query handlers are unaffected by the Clock and POST adaptations. No code changes expected.
+
+**Independent Test**: Run query handler tests to confirm no regressions.
+
+- [X] T077 [US2] Verify no regressions in hall and movie query handler tests: run `mvn -B test -pl scheduling -Dtest="HallQueryHandlerImplTest,MovieQueryHandlerImplTest"` from the repository root. These tests should pass without any changes since query handlers don't use `Instant.now()` or the agent POST endpoint.
+
+**Checkpoint**: Hall and movie query functionality confirmed unaffected
+
+---
+
+## Phase 10: Constitution v1.6.0 Adaptation — US3: Query Scheduled Shows
+
+**Goal**: Adapt persistence integration tests that construct Show instances with `Instant.now()` to use fixed instants and the updated Show constructor.
+
+**Independent Test**: Run persistence tests to verify Shows can be saved and queried with fixed instants.
+
+### Tests for US3 Adaptation ⚠️
+
+- [X] T078 [P] [US3] Update `JpaShowRepositoryTest` in `scheduling/src/test/java/com/github/scheduling/infrastructure/persistence/show/JpaShowRepositoryTest.java`: in `saveShouldSaveShow()`, replace `Instant.now().truncatedTo(ChronoUnit.MILLIS).plus(7L, ChronoUnit.DAYS)` with `Instant.parse("2026-01-08T00:00:00Z")`. Pass a fixed `now` instant `Instant.parse("2026-01-01T00:00:00Z")` as the last argument to `new Show(showId, scheduledAt, movie, hall, now)`.
+
+- [X] T079 [P] [US3] Verify `JpaShowQueryHandlerTest` in `scheduling/src/test/java/com/github/scheduling/infrastructure/persistence/show/JpaShowQueryHandlerTest.java` passes without code changes — it uses `ShowFixture.newShow()` which was already updated in T066.
+
+### Implementation for US3 Adaptation
+
+No production code changes required — the query handler and repository implementations don't call `Instant.now()`.
+
+- [X] T080 [US3] Verify all persistence tests pass: run `mvn -B test -pl scheduling -Dtest="JpaShowRepositoryTest,JpaShowQueryHandlerTest"` from the repository root.
+
+**Checkpoint**: All persistence and query tests pass with fixed Clock and updated Show constructor
+
+---
+
+## Phase 11: Constitution v1.6.0 Adaptation — Polish & Verification
+
+**Purpose**: Full build verification, zero `Instant.now()` confirmation, contract artifact sync, and architecture validation.
+
+- [X] T081 Run the full build with `mvn -B package --file pom.xml` from the repository root to verify all modules compile and all tests pass (including ArchUnit).
+
+- [X] T082 [P] Verify `ArchitectureTest` in `scheduling/src/test/java/com/github/scheduling/ArchitectureTest.java` still passes — confirm no architectural violations from the `Clock` import in the application layer.
+
+- [X] T083 [P] Sync the spec contracts copy: copy `scheduling/src/main/resources/static/scheduling-openapi.yaml` to `specs/002-ai-show-scheduling/contracts/scheduling-openapi.yaml` to keep the spec artifact in sync.
+
+- [X] T084 [P] Verify no remaining `Instant.now()` calls in the scheduling module by running `grep -r "Instant.now()" scheduling/` — must return zero results for both production and test code.
+
+- [X] T085 Run quickstart.md validation: confirm the curl command uses `POST /scheduling/agent/messages` (not the old `/scheduling/agent` path) in `specs/002-ai-show-scheduling/quickstart.md`.
+
+---
+
+## Dependencies & Execution Order (Constitution v1.6.0 Adaptation)
+
+### Phase Dependencies
+
+- **Phase 7 (Foundational)**: No dependencies on other adaptation phases — can start immediately after verifying baseline (T061 passed in original Phase 6). BLOCKS all adaptation story phases.
+- **Phase 8 (US1)**: Depends on Phase 7 completion (T065 Show constructor change, T071 OpenAPI regeneration)
+- **Phase 9 (US2)**: Depends on Phase 7 completion — independent of Phase 8
+- **Phase 10 (US3)**: Depends on Phase 7 completion (T066 ShowFixture change) — independent of Phase 8/9
+- **Phase 11 (Polish)**: Depends on Phases 8, 9, and 10 being complete
+
+### User Story Dependencies
+
+- **US1 (P1)**: Depends on T065 (Show constructor), T071 (OpenAPI regeneration). Cannot start until Phase 7 is complete.
+- **US2 (P2)**: Independent — regression verification only. Can start after Phase 7.
+- **US3 (P3)**: Depends on T066 (ShowFixture). Can start after Phase 7.
+
+### Within Each Adaptation Phase
+
+- Tests MUST be updated first and verified to fail before implementation changes
+- Domain changes before application layer changes
+- Application layer changes before infrastructure layer changes
+- Verify at each checkpoint before proceeding
+
+### Parallel Opportunities
+
+- **Phase 7**: T066, T067, T068, T069 can all run in parallel (different files)
+- **Phase 8**: T072 and T073 can run in parallel (different test files)
+- **Phase 9-10**: US2 (T077) and US3 (T078, T079) can run in parallel after Phase 7
+- **Phase 11**: T082, T083, T084 can run in parallel (independent verification tasks)
+
+---
+
+## Parallel Example: Constitution v1.6.0 Adaptation
+
+```bash
+# Phase 7 — Launch foundational tasks in parallel:
+T066: "Update ShowFixture with fixed instants"
+T067: "Create FixedClockConfiguration"
+T068: "Import FixedClockConfiguration in PersistenceTest"
+T069: "Import FixedClockConfiguration in ControllerTest"
+
+# Phase 8 — Launch US1 test updates in parallel:
+T072: "Update ShowTest with fixed instants and now parameter"
+T073: "Update ShowCommandHandlerImplTest with mocked Clock"
+
+# Phases 9+10 — Launch in parallel after Phase 7:
+T077: "Verify US2 query handler tests (no changes)"
+T078 + T079: "Update JpaShowRepositoryTest + verify JpaShowQueryHandlerTest"
+```
+
+---
+
+## Implementation Strategy (Constitution v1.6.0 Adaptation)
+
+### MVP First (US1 Adaptation Only)
+
+1. Complete Phase 7: Foundational (Clock infrastructure + OpenAPI contract)
+2. Complete Phase 8: US1 (command handler Clock injection + agent endpoint 201)
+3. **STOP and VALIDATE**: Run `mvn -B test -pl scheduling -Dtest="ShowTest,ShowCommandHandlerImplTest"`
+4. Proceed to remaining story adaptations
+
+### Incremental Delivery
+
+1. Complete Phase 7 → Foundation adapted, fixed Clock in place
+2. Complete Phase 8 → Core scheduling path uses Clock, agent returns 201 (MVP!)
+3. Complete Phase 9 → Query handlers confirmed unaffected
+4. Complete Phase 10 → Persistence tests use fixed instants
+5. Complete Phase 11 → Full build passes, zero `Instant.now()` calls remain
+
+---
+
 ## Notes
 
 - [P] tasks = different files, no dependencies
@@ -264,6 +445,8 @@ With multiple developers:
 - Verify tests fail before implementing
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
-- The `ShowFixture.newShow()` must use a future `scheduledAt` (e.g., `Instant.now().plus(7, ChronoUnit.DAYS)`) since the Show constructor validates future dates
+- The `ShowFixture.newShow()` must use a fixed future `scheduledAt` relative to the fixed `NOW` constant
 - The SchedulingAgent tool-use loop must handle multiple rounds of tool calls before Claude returns a final text response
 - Anthropic API key must be set as `ANTHROPIC_API_KEY` env var for AI agent tests/demo
+- After adaptation, zero `Instant.now()` calls should remain anywhere in the scheduling module
+- The `now` parameter in the `Show` constructor is transient — it is NOT persisted, only used for validation at construction time

@@ -58,7 +58,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
 
-  /scheduling/agent:
+  /scheduling/agent/messages:
     post:
       tags: [Agent]
       operationId: sendAgentMessage
@@ -70,8 +70,8 @@ paths:
             schema:
               $ref: '#/components/schemas/AgentMessageRequest'
       responses:
-        '200':
-          description: Agent response
+        '201':
+          description: Agent message created
           content:
             application/json:
               schema:

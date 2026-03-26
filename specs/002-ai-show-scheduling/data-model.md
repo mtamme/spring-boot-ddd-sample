@@ -13,12 +13,14 @@ specific hall for a specific movie.
 |-------------|---------|---------------------------------------------------|----------------------------------------------|
 | showId      | ShowId  | Unique domain identifier                          | Required, immutable, format `S0[0-9A-F]{16}` |
 | scheduledAt | Instant | Date/time when the show starts                    | Required, must be in the future at creation  |
+| now         | Instant | Current time (passed by command handler via Clock) | Required, used for future-date validation    |
 | movie       | Movie   | The movie being shown (embedded value object)     | Required, immutable                          |
 | hall        | Hall    | The hall where the show takes place (embedded VO) | Required, immutable                          |
 
 **Identity**: `showId` (not the JPA surrogate `id`)
 **Lifecycle**: Created once, never modified (immutable after construction)
 **Events raised**: `ShowScheduled` in constructor
+**Clock discipline**: The `now` parameter is not persisted — it is a transient construction-time input used solely for the `Contract.check(scheduledAt.isAfter(now))` invariant. The application-layer command handler obtains it from the injected `Clock` bean (`clock.instant()`). This satisfies constitution v1.6.0 Clock injection rule while keeping the domain layer free of `Clock` dependencies.
 
 **JPA mapping** (ORM XML):
 

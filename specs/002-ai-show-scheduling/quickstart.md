@@ -25,7 +25,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=default,local
 
 ```bash
 # Send a scheduling request to the AI agent
-curl -X POST http://localhost:8080/scheduling/agent \
+curl -X POST http://localhost:8080/scheduling/agent/messages \
   -H "Content-Type: application/json" \
   -d '{"message": "Schedule a show for Movie 1 in Hall 1 tomorrow at 7 PM"}'
 ```

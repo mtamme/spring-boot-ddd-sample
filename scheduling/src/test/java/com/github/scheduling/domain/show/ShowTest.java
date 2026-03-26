@@ -15,12 +15,13 @@ class ShowTest {
   void constructorShouldCreateShowAndRaiseShowScheduledEvent() {
     // Arrange
     final var showId = new ShowId("S00000000000000000");
-    final var scheduledAt = Instant.now().plus(7L, ChronoUnit.DAYS);
+    final var now = Instant.parse("2026-01-01T00:00:00Z");
+    final var scheduledAt = now.plus(7L, ChronoUnit.DAYS);
     final var movie = MovieFixture.newMovie("M00000000000000000");
     final var hall = HallFixture.newHall("H00000000000000000");
 
     // Act
-    final var show = new Show(showId, scheduledAt, movie, hall);
+    final var show = new Show(showId, scheduledAt, movie, hall, now);
 
     // Assert
     assertEquals(showId, show.showId());
@@ -41,15 +42,29 @@ class ShowTest {
   void constructorWithPastScheduledAtShouldThrowShowException() {
     // Arrange
     final var showId = new ShowId("S00000000000000000");
-    final var pastScheduledAt = Instant.now().minus(1L, ChronoUnit.DAYS);
+    final var now = Instant.parse("2026-01-01T00:00:00Z");
+    final var pastScheduledAt = now.minus(1L, ChronoUnit.DAYS);
     final var movie = MovieFixture.newMovie("M00000000000000000");
     final var hall = HallFixture.newHall("H00000000000000000");
 
     // Act & Assert
     final var exception = assertThrows(ShowException.class,
-      () -> new Show(showId, pastScheduledAt, movie, hall));
+      () -> new Show(showId, pastScheduledAt, movie, hall, now));
 
     assertEquals(ShowException.PAST_SCHEDULE_PROBLEM, exception.getProblem());
+  }
+
+  @Test
+  void constructorWithNullNowShouldThrowIllegalArgumentException() {
+    // Arrange
+    final var showId = new ShowId("S00000000000000000");
+    final var scheduledAt = Instant.parse("2026-01-08T00:00:00Z");
+    final var movie = MovieFixture.newMovie("M00000000000000000");
+    final var hall = HallFixture.newHall("H00000000000000000");
+
+    // Act & Assert
+    assertThrows(IllegalArgumentException.class,
+      () -> new Show(showId, scheduledAt, movie, hall, null));
   }
 
   @Test

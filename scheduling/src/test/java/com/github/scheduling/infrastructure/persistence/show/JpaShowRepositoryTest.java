@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -28,10 +27,11 @@ class JpaShowRepositoryTest extends PersistenceTest {
   void saveShouldSaveShow() {
     // Arrange
     final var showId = new ShowId("S00000000000000000");
-    final var scheduledAt = Instant.now().truncatedTo(ChronoUnit.MILLIS).plus(7L, ChronoUnit.DAYS);
+    final var now = Instant.parse("2026-01-01T00:00:00Z");
+    final var scheduledAt = Instant.parse("2026-01-08T00:00:00Z");
     final var movie = new Movie(new MovieId("M00000000000000000"), "TestMovie", 120);
     final var hall = new Hall(new HallId("H00000000000000000"), "TestHall", 150);
-    final var show = new Show(showId, scheduledAt, movie, hall);
+    final var show = new Show(showId, scheduledAt, movie, hall, now);
 
     // Act
     transactionTemplate.executeWithoutResult(status -> showRepository.save(show));

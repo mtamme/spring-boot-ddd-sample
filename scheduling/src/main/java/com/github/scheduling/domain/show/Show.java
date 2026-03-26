@@ -18,12 +18,14 @@ public class Show extends AggregateRoot {
   public Show(final ShowId showId,
               final Instant scheduledAt,
               final Movie movie,
-              final Hall hall) {
+              final Hall hall,
+              final Instant now) {
     Contract.require(showId != null);
     Contract.require(scheduledAt != null);
     Contract.require(movie != null);
     Contract.require(hall != null);
-    Contract.check(scheduledAt.isAfter(Instant.now()), ShowException::pastSchedule);
+    Contract.require(now != null);
+    Contract.check(scheduledAt.isAfter(now), ShowException::pastSchedule);
 
     this.showId = showId;
     this.scheduledAt = scheduledAt;

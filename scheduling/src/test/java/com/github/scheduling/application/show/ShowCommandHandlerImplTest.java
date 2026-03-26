@@ -14,7 +14,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,10 +34,12 @@ class ShowCommandHandlerImplTest {
   @Mock
   private ShowSchedulingPolicy showSchedulingPolicy;
 
+  private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
+
   @Test
   void scheduleShowShouldScheduleShow() {
     // Arrange
-    final var scheduledAt = Instant.now().plus(7L, ChronoUnit.DAYS);
+    final var scheduledAt = Instant.parse("2026-01-08T00:00:00Z");
 
     when(showRepository.nextShowId())
       .thenReturn(new ShowId("S00000000000000000"));
@@ -48,7 +52,7 @@ class ShowCommandHandlerImplTest {
     doNothing()
       .when(showRepository)
       .save(showCaptor.capture());
-    final var handler = new ShowCommandHandlerImpl(showRepository, movieService, hallService, showSchedulingPolicy);
+    final var handler = new ShowCommandHandlerImpl(showRepository, movieService, hallService, showSchedulingPolicy, clock);
     final var command = new ScheduleShowCommand(scheduledAt, "M00000000000000000", "H00000000000000000");
 
     // Act
@@ -72,7 +76,7 @@ class ShowCommandHandlerImplTest {
   @Test
   void scheduleShowWithOverlapShouldThrowShowException() {
     // Arrange
-    final var scheduledAt = Instant.now().plus(7L, ChronoUnit.DAYS);
+    final var scheduledAt = Instant.parse("2026-01-08T00:00:00Z");
 
     when(movieService.movieFrom(new MovieId("M00000000000000000")))
       .thenReturn(MovieFixture.newMovie("M00000000000000000"));
@@ -81,7 +85,7 @@ class ShowCommandHandlerImplTest {
     doThrow(ShowException.overlap())
       .when(showSchedulingPolicy)
       .ensureNoOverlap(any(), any(), any());
-    final var handler = new ShowCommandHandlerImpl(showRepository, movieService, hallService, showSchedulingPolicy);
+    final var handler = new ShowCommandHandlerImpl(showRepository, movieService, hallService, showSchedulingPolicy, clock);
     final var command = new ScheduleShowCommand(scheduledAt, "M00000000000000000", "H00000000000000000");
 
     // Act & Assert

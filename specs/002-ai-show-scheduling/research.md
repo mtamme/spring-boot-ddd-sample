@@ -93,3 +93,39 @@
 
 **Alternatives considered**:
 - Adding to booking module: Rejected — violates bounded context independence; booking and scheduling are separate concerns
+
+## R6: Clock Injection for Time-Dependent Domain Validation (Constitution v1.6.0)
+
+**Decision**: Pass `Instant now` as a parameter to the `Show` aggregate constructor. The application-layer `ShowCommandHandlerImpl` injects the seedwork `Clock` bean and passes `clock.instant()` when constructing the Show.
+
+**Rationale**: Constitution v1.6.0 forbids direct `Instant.now()` calls in application and infrastructure code. The domain layer must remain technology-agnostic (no `Clock` dependency), but the `Show` constructor currently calls `Instant.now()` to validate that `scheduledAt` is in the future. Passing the current time as a constructor parameter keeps the domain pure while satisfying the Clock injection rule. The command handler — which lives in the application layer — is the natural injection point for the `Clock` bean.
+
+**Impact on existing code**:
+- `Show.java`: Constructor signature changes from `Show(ShowId, Instant scheduledAt, Movie, Hall)` to `Show(ShowId, Instant scheduledAt, Movie, Hall, Instant now)`. Validation becomes `Contract.check(scheduledAt.isAfter(now), ShowException::pastSchedule)`.
+- `ShowCommandHandlerImpl.java`: Inject `Clock` via constructor. Call `clock.instant()` and pass to `new Show(...)`.
+- `ShowFixture.java`: Use a fixed `Instant` (e.g., `Instant.parse("2026-01-01T00:00:00Z")`) as the `now` parameter, with `scheduledAt` set 7 days after that fixed instant.
+- `ShowTest.java`: Use fixed instants for both `now` and `scheduledAt`, making tests deterministic.
+- `ShowCommandHandlerImplTest.java`: Mock `Clock` or pass `Clock.fixed(...)` to the handler.
+- `JpaShowRepositoryTest.java` and other integration tests: Override `Clock` bean with `Clock.fixed(...)` via a test configuration class, following the constitution mandate that "integration tests that boot the Spring context MUST override the auto-configured Clock bean with a fixed instance via a test configuration class."
+
+**Alternatives considered**:
+- Injecting `Clock` directly into the `Show` aggregate: Rejected — domain classes must remain technology-agnostic; `Clock` is a `java.time` class but its injection implies framework wiring in the domain.
+- Using a static `TimeProvider` utility in seedwork domain: Rejected — hidden static dependency; harder to test; less explicit than parameter passing.
+- Keeping `Instant.now()` in the domain and documenting as exception: Rejected — constitution is explicit about forbidding `Instant.now()` and the spirit of the rule (testability, determinism) clearly applies to domain code even though the literal text says "application and infrastructure code."
+
+## R7: POST Collection Resource URI for Agent Endpoint (Constitution v1.6.0)
+
+**Decision**: Rename `POST /scheduling/agent` to `POST /scheduling/agent/messages` and return `201 Created` instead of `200 OK`.
+
+**Rationale**: Constitution v1.6.0 added an explicit rule that POST requests MUST target a collection resource URI. The current `POST /scheduling/agent` endpoint is not modeled as a collection resource. By renaming to `/scheduling/agent/messages`, each interaction is modeled as creating a new "agent message" resource in the messages collection. The response body remains `{ "response": "..." }` but the status code changes to `201 Created` to align with POST semantics.
+
+**Impact on existing code**:
+- `scheduling-openapi.yaml` (both in `src/main/resources/static/` and `specs/contracts/`): Path changes from `/scheduling/agent` to `/scheduling/agent/messages`. Response status changes from `200` to `201 Created`.
+- `AgentController.java`: Return `ResponseEntity.created(...)` or `ResponseEntity.status(HttpStatus.CREATED)` instead of `ResponseEntity.ok(...)`.
+- Generated `AgentOperations` interface: Regenerated from updated OpenAPI spec.
+- `quickstart.md`: Update curl example URL.
+
+**Alternatives considered**:
+- Keeping `POST /scheduling/agent` as-is and documenting as justified exception: Considered — the endpoint is not a resource creation endpoint in the traditional sense. However, the constitution rule is unambiguous ("never an individual resource or action endpoint"), and modeling as a message collection is a clean REST-compatible design.
+- Using `PUT` for idempotency: Rejected — agent messages are not idempotent; each message creates a new interaction with potentially different tool invocations and results.
+- Using `GET` with request body: Rejected — while semantically closer (query/response), GET with a body is non-standard and poorly supported by clients.
