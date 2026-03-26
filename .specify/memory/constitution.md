@@ -1,24 +1,16 @@
 <!--
 Sync Impact Report
-- Version change: 1.5.0 -> 1.5.1
+- Version change: 1.5.1 -> 1.6.0
 - Modified principles: none
-- Added sections: none
+- Added sections:
+  - Engineering Standards / Clock and Time Access (new subsection)
+- Modified sections:
+  - RESTful API Design / HTTP Method Semantics: POST MUST target collection
+      resource URIs (explicit rule added)
 - Removed sections: none
-- Clarifications applied (PATCH):
-  - JPA Mapping Rules / @Transactional placement: added explicit exception
-      clause for event handler classes (no separate interface, so @Transactional
-      is placed on the concrete class — not a violation of the interface rule).
-  - JPA Mapping Rules / element-collection: removed redundant second statement
-      of @OneToMany/@ManyToOne prohibition (it cited "see rule above", confirming
-      pure duplication); retained the element-collection LAZY and open-in-view
-      guidance that followed it.
-  - Principle VIII / event handler business logic: tightened wording from
-      "business logic" to "domain business logic" to prevent misreading
-      orchestration (load-invoke-save) as a violation of the no-logic rule.
-  - Governance: strengthened "Compliance review happens" to
-      "Compliance review MUST happen" for normative consistency.
 - Templates requiring updates:
-  - ✅ no changes required in .specify/templates/plan-template.md
+  - ✅ .specify/templates/plan-template.md — Constitution Check updated with
+      Clock and POST-collection-resource checklist items
   - ✅ no changes required in .specify/templates/spec-template.md
   - ✅ no changes required in .specify/templates/tasks-template.md
   - ✅ no commands directory present at .specify/templates/commands
@@ -311,8 +303,10 @@ handler, and mapper exclusively via constructor injection.
 
 HTTP methods MUST map to domain intent as follows:
 
-- `POST` — resource creation (initiates a new aggregate). Returns `201 Created`
-  with a minimal body containing the new resource identifier.
+- `POST` — resource creation (initiates a new aggregate). The request MUST
+  target a **collection resource URI** (e.g., `POST /shows/{show_id}/bookings`,
+  `POST /shows`), never an individual resource or action endpoint. Returns
+  `201 Created` with a minimal body containing the new resource identifier.
 - `PUT` — idempotent state transition (moves a resource to a named target state).
   Returns `204 No Content`. No request body; the target state is encoded in the
   URL path segment (e.g., `PUT /confirmed-bookings/{booking_id}`). Calling the
@@ -511,6 +505,28 @@ mocked repository dependencies. Repository interactions MUST be verified through
 argument captures or mock verifications to confirm correct aggregate state
 changes and save calls.
 
+### Clock and Time Access
+
+All production code that requires the current time MUST obtain it from the
+auto-configured `Clock` bean provided by `ClockAutoConfiguration` in seedwork
+(which returns `Clock.systemUTC()`). Direct calls to `Instant.now()`,
+`LocalDateTime.now()`, `Clock.systemUTC()`, or any other static time-retrieval
+method are forbidden in application and infrastructure code. The `Clock`
+instance MUST be injected via constructor injection, following the same
+dependency-injection discipline as repositories and other collaborators.
+
+In tests, the `Clock` MUST always be fixed (e.g.,
+`Clock.fixed(instant, ZoneOffset.UTC)`) so that time-dependent behavior is
+deterministic and repeatable. Unit tests MUST construct or mock a fixed `Clock`
+directly; integration tests that boot the Spring context MUST override the
+auto-configured `Clock` bean with a fixed instance via a test configuration
+class.
+
+Rationale: the seedwork auto-configuration already centralizes clock access for
+the outbox infrastructure; extending this rule to all bounded contexts prevents
+non-deterministic test failures and makes time-sensitive logic explicitly
+testable.
+
 ## Delivery Workflow
 
 - Plans MUST identify affected modules, affected layers, required tests, API or
@@ -539,4 +555,4 @@ principles or materially expanded obligations, and PATCH for clarifications that
 do not change enforcement. Ratification records the original adoption date of
 this document; `Last Amended` MUST be updated whenever the constitution changes.
 
-**Version**: 1.5.1 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-22
+**Version**: 1.6.0 | **Ratified**: 2026-03-15 | **Last Amended**: 2026-03-26
