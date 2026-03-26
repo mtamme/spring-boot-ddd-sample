@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: scheduling
+  flyway:
+    table: schema_history
+    locations:
+      - classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: none
+    mapping-resources:
+      - META-INF/domain/show.orm.xml
+      - META-INF/query/show.orm.xml
+      - seedwork/META-INF/domain/super-types.orm.xml
+    open-in-view: false
+  web:
+    resources:
+      static-locations:
+        - classpath:/static
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

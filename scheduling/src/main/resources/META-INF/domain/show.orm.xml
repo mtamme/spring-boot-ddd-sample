@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence/orm
+                   https://jakarta.ee/xml/ns/persistence/orm/orm_3_2.xsd"
+                 version="3.2">
+
+  <entity class="com.github.scheduling.domain.show.Show" access="FIELD">
+    <table name="show"/>
+    <sequence-generator name="show_s" sequence-name="show_s" allocation-size="50"/>
+    <attributes>
+      <id name="id">
+        <column name="id_"/>
+        <generated-value strategy="SEQUENCE" generator="show_s"/>
+      </id>
+      <basic name="scheduledAt">
+        <column name="scheduled_at" updatable="false"/>
+      </basic>
+      <embedded name="showId">
+        <attribute-override name="value">
+          <column name="show_id" updatable="false"/>
+        </attribute-override>
+      </embedded>
+      <embedded name="movie">
+        <attribute-override name="movieId.value">
+          <column name="movie_id" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="title">
+          <column name="movie_title" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="runtimeMinutes">
+          <column name="movie_runtime_minutes" updatable="false"/>
+        </attribute-override>
+      </embedded>
+      <embedded name="hall">
+        <attribute-override name="hallId.value">
+          <column name="hall_id" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="name">
+          <column name="hall_name" updatable="false"/>
+        </attribute-override>
+        <attribute-override name="seatCount">
+          <column name="hall_seat_count" updatable="false"/>
+        </attribute-override>
+      </embedded>
+    </attributes>
+  </entity>
+
+  <embeddable class="com.github.scheduling.domain.show.ShowId" access="FIELD"/>
+  <embeddable class="com.github.scheduling.domain.movie.Movie" access="FIELD"/>
+  <embeddable class="com.github.scheduling.domain.movie.MovieId" access="FIELD"/>
+  <embeddable class="com.github.scheduling.domain.hall.Hall" access="FIELD"/>
+  <embeddable class="com.github.scheduling.domain.hall.HallId" access="FIELD"/>
+
+</entity-mappings>
