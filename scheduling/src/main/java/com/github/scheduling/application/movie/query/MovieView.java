@@ -1,4 +1,4 @@
-package com.github.scheduling.application.show.query;
+package com.github.scheduling.application.movie.query;
 
 public record MovieView(String movieId, String title, int runtimeMinutes) {
 }

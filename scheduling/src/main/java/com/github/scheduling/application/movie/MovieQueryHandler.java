@@ -1,7 +1,7 @@
-package com.github.scheduling.application.show;
+package com.github.scheduling.application.movie;
 
-import com.github.scheduling.application.show.query.ListMoviesQuery;
-import com.github.scheduling.application.show.query.MovieView;
+import com.github.scheduling.application.movie.query.ListMoviesQuery;
+import com.github.scheduling.application.movie.query.MovieView;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;

@@ -1,7 +1,7 @@
-package com.github.scheduling.application.show;
+package com.github.scheduling.application.hall;
 
-import com.github.scheduling.application.show.query.HallView;
-import com.github.scheduling.application.show.query.ListHallsQuery;
+import com.github.scheduling.application.hall.query.HallView;
+import com.github.scheduling.application.hall.query.ListHallsQuery;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;

@@ -1,7 +1,7 @@
-package com.github.scheduling.application.show;
+package com.github.scheduling.application.hall;
 
-import com.github.scheduling.application.show.query.HallView;
-import com.github.scheduling.application.show.query.ListHallsQuery;
+import com.github.scheduling.application.hall.query.HallView;
+import com.github.scheduling.application.hall.query.ListHallsQuery;
 import com.github.scheduling.domain.hall.HallService;
 import org.springframework.stereotype.Service;
 

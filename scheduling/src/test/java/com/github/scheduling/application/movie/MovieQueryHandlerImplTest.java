@@ -1,7 +1,7 @@
-package com.github.scheduling.application.show;
+package com.github.scheduling.application.movie;
 
-import com.github.scheduling.application.show.query.ListMoviesQuery;
-import com.github.scheduling.application.show.query.MovieView;
+import com.github.scheduling.application.movie.query.ListMoviesQuery;
+import com.github.scheduling.application.movie.query.MovieView;
 import com.github.scheduling.domain.movie.MovieFixture;
 import com.github.scheduling.domain.movie.MovieService;
 import org.junit.jupiter.api.Test;

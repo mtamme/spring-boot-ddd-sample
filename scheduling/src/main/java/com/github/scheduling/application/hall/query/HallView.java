@@ -1,4 +1,4 @@
-package com.github.scheduling.application.show.query;
+package com.github.scheduling.application.hall.query;
 
 public record HallView(String hallId, String name, int seatCount) {
 }
