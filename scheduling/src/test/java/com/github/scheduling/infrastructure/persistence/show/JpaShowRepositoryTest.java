@@ -66,4 +66,48 @@ class JpaShowRepositoryTest extends PersistenceTest {
     // Assert
     assertTrue(found.isEmpty());
   }
+
+  @Test
+  void countOverlappingShowsWithOverlapShouldReturnCount() {
+    // Arrange
+    final var now = Instant.parse("2026-01-01T00:00:00Z");
+    final var scheduledAt = Instant.parse("2026-01-08T19:00:00Z");
+    final var movie = new Movie(new MovieId("M00000000000000000"), "TestMovie", 120);
+    final var hall = new Hall(new HallId("H00000000000000000"), "TestHall", 150);
+    final var show = new Show(new ShowId("S00000000000000000"), scheduledAt, movie, hall, now);
+
+    transactionTemplate.executeWithoutResult(status -> showRepository.save(show));
+
+    // Act — query a range that overlaps with [19:00, 21:00)
+    final var count = transactionTemplate.execute(status ->
+      showRepository.countOverlappingShows(
+        new HallId("H00000000000000000"),
+        Instant.parse("2026-01-08T20:00:00Z"),
+        Instant.parse("2026-01-08T22:00:00Z")));
+
+    // Assert
+    assertEquals(1L, count);
+  }
+
+  @Test
+  void countOverlappingShowsWithNoOverlapShouldReturnZero() {
+    // Arrange
+    final var now = Instant.parse("2026-01-01T00:00:00Z");
+    final var scheduledAt = Instant.parse("2026-01-08T19:00:00Z");
+    final var movie = new Movie(new MovieId("M00000000000000000"), "TestMovie", 120);
+    final var hall = new Hall(new HallId("H00000000000000000"), "TestHall", 150);
+    final var show = new Show(new ShowId("S00000000000000001"), scheduledAt, movie, hall, now);
+
+    transactionTemplate.executeWithoutResult(status -> showRepository.save(show));
+
+    // Act — query a range after [19:00, 21:00)
+    final var count = transactionTemplate.execute(status ->
+      showRepository.countOverlappingShows(
+        new HallId("H00000000000000000"),
+        Instant.parse("2026-01-08T21:00:00Z"),
+        Instant.parse("2026-01-08T23:00:00Z")));
+
+    // Assert
+    assertEquals(0L, count);
+  }
 }

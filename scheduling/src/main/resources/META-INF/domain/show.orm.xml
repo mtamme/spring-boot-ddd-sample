@@ -5,6 +5,15 @@
                    https://jakarta.ee/xml/ns/persistence/orm/orm_3_2.xsd"
                  version="3.2">
 
+  <named-query name="Show.countOverlappingShows">
+    <query><![CDATA[
+      SELECT COUNT(s) FROM Show s
+      WHERE s.hall.hallId = :hallId
+        AND s.scheduledAt < :endTime
+        AND timestampadd(MINUTE, s.movie.runtimeMinutes, s.scheduledAt) > :startTime
+    ]]></query>
+  </named-query>
+
   <entity class="com.github.scheduling.domain.show.Show" access="FIELD">
     <table name="show"/>
     <sequence-generator name="show_s" sequence-name="show_s" allocation-size="50"/>

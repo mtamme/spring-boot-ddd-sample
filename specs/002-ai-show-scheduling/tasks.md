@@ -437,6 +437,23 @@ T078 + T079: "Update JpaShowRepositoryTest + verify JpaShowQueryHandlerTest"
 
 ---
 
+## Phase 12: Refactor — Move ShowSchedulingPolicy to Domain
+
+**Purpose**: Move the overlap-check SQL from `JpaShowSchedulingPolicy` (infrastructure) into `ShowRepository` via ORM XML named native query. Convert `ShowSchedulingPolicy` from an interface to a `@Service` domain service. Delete the infrastructure implementation.
+
+- [X] T086 [P] Add `long countOverlappingShows(HallId hallId, Instant start, Instant end)` method to `scheduling/src/main/java/com/github/scheduling/domain/show/ShowRepository.java`
+- [X] T087 [P] Add named native query `ShowRepository.countOverlappingShows` to `scheduling/src/main/resources/META-INF/domain/show.orm.xml`
+- [X] T088 [P] Add `@NativeQuery` method `countOverlappingShowsQuery` and default bridge `countOverlappingShows` to `scheduling/src/main/java/com/github/scheduling/infrastructure/persistence/show/JpaShowRepository.java`
+- [X] T089 Convert `scheduling/src/main/java/com/github/scheduling/domain/show/ShowSchedulingPolicy.java` from interface to `@Service` class using `ShowRepository.countOverlappingShows` with `Contract.check` and `Contract.require`
+- [X] T090 Delete `scheduling/src/main/java/com/github/scheduling/infrastructure/persistence/show/JpaShowSchedulingPolicy.java`
+- [X] T091 [P] Create domain unit test `scheduling/src/test/java/com/github/scheduling/domain/show/ShowSchedulingPolicyTest.java` — `ensureNoOverlapWithNoOverlapShouldNotThrow` and `ensureNoOverlapWithOverlapShouldThrowShowException`
+- [X] T092 [P] Add persistence integration tests to `scheduling/src/test/java/com/github/scheduling/infrastructure/persistence/show/JpaShowRepositoryTest.java` — `countOverlappingShowsWithOverlapShouldReturnCount` and `countOverlappingShowsWithNoOverlapShouldReturnZero`
+- [X] T093 Verify full build `mvn -B package --file pom.xml` passes (all modules: seedwork, booking, scheduling)
+
+**Checkpoint**: ShowSchedulingPolicy is a domain service, count query is in ORM XML, JpaShowSchedulingPolicy deleted, all 30 scheduling tests pass.
+
+---
+
 ## Notes
 
 - [P] tasks = different files, no dependencies

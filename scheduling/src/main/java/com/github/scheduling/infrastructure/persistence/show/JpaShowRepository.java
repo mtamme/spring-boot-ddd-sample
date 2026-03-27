@@ -2,6 +2,7 @@ package com.github.scheduling.infrastructure.persistence.show;
 
 import com.github.scheduling.application.show.query.ShowDetailView;
 import com.github.scheduling.application.show.query.ShowSummaryView;
+import com.github.scheduling.domain.hall.HallId;
 import com.github.scheduling.domain.show.Show;
 import com.github.scheduling.domain.show.ShowId;
 import com.github.scheduling.domain.show.ShowRepository;
@@ -11,6 +12,7 @@ import org.springframework.data.jpa.repository.NativeQuery;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +27,11 @@ public interface JpaShowRepository extends JpaAggregateRootSupport, Repository<S
   default void save(final Show show) {
     saveAndPublishEvents(show.showId().value(), show);
   }
+
+  @Override
+  long countOverlappingShows(@Param("hallId") HallId hallId,
+                             @Param("startTime") Instant start,
+                             @Param("endTime") Instant end);
 
   @NativeQuery(name = "ShowDetailView.getShow")
   Optional<ShowDetailView> getShow(@Param("show_id") String showId);

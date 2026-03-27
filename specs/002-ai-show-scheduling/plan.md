@@ -1,69 +1,40 @@
-# Implementation Plan: AI Show Scheduling Bounded Context
+# Implementation Plan: Move Show Scheduling Policy to Domain
 
-**Branch**: `002-ai-show-scheduling` | **Date**: 2026-03-26 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/002-ai-show-scheduling/spec.md`
-
-**Note**: This plan has been adapted post-implementation to account for constitution v1.6.0 changes (Clock injection rule, POST collection resource requirement).
+**Branch**: `002-ai-show-scheduling` | **Date**: 2026-03-27 | **Spec**: [spec.md](spec.md)
+**Input**: Move the count query from `JpaShowSchedulingPolicy` into `ShowRepository` using ORM XML. Implement `ShowSchedulingPolicy` as a domain `@Service` using the new repository query method.
 
 ## Summary
 
-Implement a new `scheduling` bounded context for AI-driven cinema show scheduling using the Claude LLM API. The aggregate root `Show` enforces future-date and hall-overlap invariants. An AI agent in the infrastructure layer exposes command/query handlers as LLM tools. Hall and movie access is mocked. Constitution v1.6.0 introduced two new rules that require adaptation of the existing implementation: (1) Clock injection instead of `Instant.now()`, and (2) POST endpoints must target collection resource URIs.
+Refactor the show overlap check from an infrastructure-layer JPA service (`JpaShowSchedulingPolicy`) into the domain layer. The SQL count query moves into `ShowRepository` (declared in `show.orm.xml`, implemented via `@NativeQuery` in `JpaShowRepository`). `ShowSchedulingPolicy` becomes a `@Service`-annotated domain service that delegates to the repository method. The infrastructure class `JpaShowSchedulingPolicy` is deleted.
 
 ## Technical Context
 
 **Language/Version**: Java 25
-**Primary Dependencies**: Spring Boot 4.0.4, Spring Data JPA, Flyway, Anthropic Java SDK 2.18.0
-**Storage**: H2 (local profile), Flyway migrations, JPA ORM XML
-**Testing**: JUnit 5, Mockito, ArchUnit, Spring Boot Test
-**Target Platform**: Linux server (local development)
-**Project Type**: Web service (Spring Boot multi-module)
-**Performance Goals**: p95 < 200ms for single-aggregate reads and commands (excluding LLM response time)
-**Constraints**: `open-in-view=false`, `ddl-auto=none`, bounded result sets
-**Scale/Scope**: Single bounded context, 1 aggregate (Show), 3 value objects, 1 domain service, 1 AI agent
+**Primary Dependencies**: Spring Boot 4.0.4, Spring Data JPA, H2 (local profile)
+**Storage**: H2 via JPA with ORM XML mappings, Flyway migrations
+**Testing**: JUnit 5, Mockito, Spring Boot Test (`PersistenceTest` base class)
+**Target Platform**: JVM (local dev)
+**Project Type**: Web service (DDD sample)
+**Performance Goals**: p95 < 200ms for scheduling command
+**Constraints**: No migration changes needed (schema unchanged); domain layer must remain technology-agnostic
+**Scale/Scope**: Single bounded context refactoring, no API changes
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- [x] Module and layer impact is explicit (`scheduling`: `infrastructure -> application -> domain`; depends on `seedwork` not `booking`); domain layer contains only Entity/Event/ValueObject types, @Service domain services, ProblemException subclasses, and interfaces.
-- [x] Domain changes keep business rules in domain types; Show aggregate raises ShowScheduled event in the constructor; `equals()`/`hashCode()` use ShowId domain identity, not surrogate key; `private Long id` and `protected` no-arg constructor are at the bottom of the aggregate class.
-- [x] Required automated tests are identified for every touched layer, including ArchUnit when structure changes.
-- [x] OpenAPI specs, Flyway migrations, domain ORM XMLs (`META-INF/domain/`), query projection ORM XMLs (`META-INF/query/`), and generated interfaces are accounted for; ORM resources are explicitly listed in `spring.jpa.mapping-resources`.
-- [x] Performance budget is documented: p95 < 200ms for reads/commands excluding LLM latency; bounded pagination (max 100) on list endpoints; no N+1 risks (single aggregate, no collections).
-- [x] All precondition checks use `Contract.require()` and all invariant checks use `Contract.check()`; `ShowException` extends `ProblemException` with `NOT_FOUND_PROBLEM`, `OVERLAP_PROBLEM`, `PAST_SCHEDULE_PROBLEM` constants; `notFound()` uses `Problem.notFound()` (HTTP 404), state violations use `Problem.conflict()` (HTTP 409).
-- [x] Naming follows layer conventions: noun accessors (`showId()`, `scheduledAt()`) in domain; `scheduleShow(ScheduleShowCommand)` in command handler; `getShow`/`listShows` in query handlers; `ShowDetailView`/`ShowSummaryView` for projections; `to<Type>()` in `@Component` mappers; `<method>With<State>Should<Behavior>()` in tests; `ShowFixture` factory methods in test fixtures.
-- [x] RESTful API design follows conventions: OpenAPI YAML written first; GET endpoints use plural kebab-case nouns and snake_case path params; collection responses wrapped (`{ "shows": [...] }`); single responses flat; errors use `application/problem+json`; offset-limit pagination (max 100). **POST endpoint evaluation**: see POST Collection Resource analysis below.
-- [x] Cross-aggregate side effects flow exclusively through domain events; `ShowScheduled` domain event is converted to integration event in infrastructure via `@EventListener`; `ShowEvent` abstract base event class implements seedwork `Event`.
-- [x] CQRS separation maintained: `ShowCommandHandler`/`ShowCommandHandlerImpl` for writes; `ShowQueryHandler`/`JpaShowQueryHandler` for reads via named native queries; command/query/result/view records in `command/` and `query/` sub-packages; infrastructure mirrors with `persistence/show/` and `web/show/`.
-- [x] Test infrastructure: `PersistenceTest` extends seedwork base (separate read/write transactions); `ControllerTest` with `@MockitoBean` isolation; application-layer tests mock repository dependencies.
-- [ ] **VIOLATION — Clock access**: `Show.java:26` calls `Instant.now()` directly. Must be replaced with Clock injection per constitution v1.6.0. See adaptation plan below.
-
-### POST Collection Resource Analysis
-
-The constitution v1.6.0 added: *"POST MUST target a collection resource URI (e.g., `POST /shows/{show_id}/bookings`, `POST /shows`), never an individual resource or action endpoint."*
-
-The `POST /scheduling/agent` endpoint is **not a resource creation endpoint** — it is a conversational interaction that sends a message to the AI agent and returns a response. It returns `200 OK`, not `201 Created`. The POST collection resource rule applies specifically to "resource creation (initiates a new aggregate)" per the HTTP Method Semantics section.
-
-**Decision**: Model the agent interaction as creating a message resource: rename to `POST /scheduling/agent/messages`. This returns `201 Created` with the agent's response, treating each interaction as a created message resource. This satisfies the constitution rule while preserving the conversational semantics.
-
-**Impact**: OpenAPI YAML path change, generated interface rename, controller path update, quickstart curl command update.
-
-### Clock Injection Adaptation
-
-The constitution v1.6.0 added: *"All production code that requires the current time MUST obtain it from the auto-configured `Clock` bean... Direct calls to `Instant.now()` are forbidden in application and infrastructure code."*
-
-The `Show` aggregate constructor calls `Instant.now()` directly to validate that `scheduledAt` is in the future. The domain layer must remain technology-agnostic (no Spring dependency), so `Clock` cannot be injected into the domain.
-
-**Decision**: Pass the current time as an `Instant now` parameter to the `Show` constructor. The application-layer command handler injects the `Clock` bean and passes `clock.instant()` when constructing the Show.
-
-**Impact**:
-- `Show.java`: Constructor gains `Instant now` parameter; validation becomes `scheduledAt.isAfter(now)`
-- `ShowCommandHandlerImpl.java`: Inject `Clock` via constructor; pass `clock.instant()` to `new Show(...)`
-- `ShowFixture.java`: Accept `Instant now` parameter or use a hardcoded fixed instant
-- `ShowTest.java`: Use fixed instants instead of `Instant.now()`
-- `ShowCommandHandlerImplTest.java`: Mock or construct a fixed `Clock`
-- `JpaShowRepositoryTest.java`: Use fixed instant (PersistenceTest can override Clock bean)
-- Integration tests: Override `Clock` bean with `Clock.fixed(...)` via test configuration
+- [x] Module and layer impact is explicit: `scheduling` domain gains a `@Service` domain service and an additional repository method; `scheduling` infrastructure loses `JpaShowSchedulingPolicy` and gains a `@NativeQuery` method + named native query in ORM XML. Domain layer contains only permitted types (Entity, Event, ValueObject, @Service domain service, ProblemException, interface).
+- [x] Domain changes keep business rules in domain types; `ShowSchedulingPolicy` moves business logic (overlap check) from infrastructure to domain `@Service`; no aggregate changes needed.
+- [x] Required automated tests identified: unit test for `ShowSchedulingPolicy` domain service; persistence integration test for `countOverlappingShows` named native query; existing `ShowCommandHandlerImplTest` updated (mock target changes from interface to concrete class — still works with Mockito).
+- [x] ORM XML updated: named native query added to `META-INF/domain/show.orm.xml`; `spring.jpa.mapping-resources` already includes this file — no config change needed. No Flyway migration needed (schema unchanged). No API changes.
+- [x] Performance budget: COUNT query with existing index on `hall_id` is O(shows-per-hall), bounded; no N+1 risk; single query per scheduling command.
+- [x] All precondition checks use `Contract.require()`; `ShowException.overlap()` uses `Problem.conflict()` (HTTP 409) — unchanged.
+- [x] Naming follows conventions: `countOverlappingShows` in repository; `ensureNoOverlap` retained in domain service; test names follow `<method>With<State>Should<Behavior>()`.
+- [x] RESTful API design: N/A — no API changes in this refactoring.
+- [x] Cross-aggregate side effects: N/A — no cross-aggregate changes.
+- [x] CQRS separation maintained: the count query is a domain repository method (not a query handler projection); it returns a scalar `long`, not a view type. Domain ORM XML is the correct location since this serves entity/aggregate operations, not CQRS read projections.
+- [x] Test infrastructure: new persistence test extends `PersistenceTest` with separate read/write transactions; domain service unit test uses `@ExtendWith(MockitoExtension.class)` with mocked repository.
+- [x] Clock access: N/A — no time access changes in this refactoring.
 
 ## Project Structure
 
@@ -71,66 +42,160 @@ The `Show` aggregate constructor calls `Instant.now()` directly to validate that
 
 ```text
 specs/002-ai-show-scheduling/
-├── plan.md              # This file (adapted for constitution v1.6.0)
-├── research.md          # Phase 0 output (updated with R6, R7)
-├── data-model.md        # Phase 1 output (updated for Clock parameter)
-├── quickstart.md        # Phase 1 output (updated for new endpoint path)
-├── contracts/           # Phase 1 output (updated OpenAPI, agent tools)
-├── checklists/          # Requirements checklist
-└── tasks.md             # Phase 2 output (/speckit.tasks command)
+├── plan.md              # This file
+├── research.md          # Phase 0 output
+├── data-model.md        # Phase 1 output
+└── quickstart.md        # Phase 1 output
 ```
 
-### Source Code (repository root)
+### Source Code (affected files)
 
 ```text
-pom.xml
 scheduling/
 ├── src/main/java/com/github/scheduling/
-│   ├── application/
-│   │   └── show/
-│   │       ├── ShowCommandHandler.java          # @Transactional interface
-│   │       ├── ShowCommandHandlerImpl.java      # Injects Clock (NEW)
-│   │       ├── ShowQueryHandler.java
-│   │       ├── HallQueryHandler.java / Impl
-│   │       ├── MovieQueryHandler.java / Impl
-│   │       ├── command/ (ScheduleShowCommand, ScheduleShowResult)
-│   │       └── query/ (views, queries)
-│   ├── domain/
-│   │   ├── show/ (Show, ShowId, ShowEvent, ShowScheduled, ShowException, ShowRepository, ShowSchedulingPolicy)
-│   │   ├── movie/ (Movie, MovieId, MovieService)
-│   │   └── hall/ (Hall, HallId, HallService)
-│   └── infrastructure/
-│       ├── agent/ (SchedulingAgent)
-│       ├── event/ (ShowScheduledIntegrationEventPublisher)
-│       ├── persistence/show/ (JpaShowRepository, JpaShowQueryHandler, JpaShowSchedulingPolicy)
-│       ├── service/ (MockMovieService, MockHallService)
-│       └── web/
-│           ├── agent/ (AgentController)             # Path updated to /scheduling/agent/messages
-│           └── show/ (ShowController, ShowMapper)
+│   ├── domain/show/
+│   │   ├── ShowRepository.java           # ADD: countOverlappingShows method
+│   │   └── ShowSchedulingPolicy.java     # CHANGE: interface → @Service class
+│   └── infrastructure/persistence/show/
+│       ├── JpaShowRepository.java        # ADD: @NativeQuery + default bridge
+│       └── JpaShowSchedulingPolicy.java  # DELETE
 ├── src/main/resources/
-│   ├── META-INF/domain/show.orm.xml
-│   ├── META-INF/query/show.orm.xml
-│   ├── db/migration/V1_0__show.sql
-│   ├── static/scheduling-openapi.yaml               # Path updated
-│   ├── application-default.yaml
-│   └── application-local.yaml
+│   └── META-INF/domain/show.orm.xml      # ADD: named native query
 └── src/test/java/com/github/scheduling/
-    ├── ArchitectureTest.java
-    ├── domain/show/ (ShowTest, ShowFixture)           # Fixed Clock
-    ├── application/show/ (ShowCommandHandlerImplTest)  # Mocked Clock
-    └── infrastructure/
-        ├── persistence/ (PersistenceTest, JpaShowRepositoryTest, JpaShowQueryHandlerTest)
-        └── web/ (ControllerTest, ShowControllerTest)
-
-seedwork/
-├── src/main/java/com/github/seedwork/infrastructure/time/
-│   └── ClockAutoConfiguration.java                    # Existing — provides Clock.systemUTC()
+    ├── domain/show/
+    │   └── ShowSchedulingPolicyTest.java  # NEW: domain service unit test
+    ├── application/show/
+    │   └── ShowCommandHandlerImplTest.java # UPDATE: mock concrete class
+    └── infrastructure/persistence/show/
+        └── JpaShowRepositoryTest.java     # ADD: count query integration test
 ```
 
-**Structure Decision**: Existing `scheduling` module structure is correct. Changes are localized to: `Show.java` (constructor signature), `ShowCommandHandlerImpl.java` (Clock injection), OpenAPI YAML (path rename), `AgentController.java` (path update), and test files (fixed Clock).
+**Structure Decision**: Changes span domain and infrastructure layers of the `scheduling` module only. No new modules, no new ORM XML files, no migration changes. The named native query is added to the existing domain ORM XML (`META-INF/domain/show.orm.xml`) because it serves domain repository operations, not CQRS query handler projections.
 
 ## Complexity Tracking
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| None | All constitution checks pass after adaptation | N/A |
+No constitution violations.
+
+---
+
+## Phase 0: Research
+
+No unknowns to resolve. All technologies and patterns are already established in the codebase:
+- Named native queries in ORM XML: established in `META-INF/query/show.orm.xml` and `seedwork/META-INF/outbox.orm.xml`
+- `@NativeQuery` annotation: established in `JpaShowRepository`
+- Domain `@Service` classes: permitted by constitution (§I)
+- Spring Data `Repository` with default methods: established in `JpaShowRepository`
+
+### Decision Log
+
+| Decision | Rationale | Alternatives Rejected |
+|----------|-----------|----------------------|
+| Named native query in domain ORM XML (`META-INF/domain/show.orm.xml`) | The count query serves the domain repository's `countOverlappingShows` method, not a CQRS query handler projection. Constitution separates domain ORM (`META-INF/domain/`) from query projection ORM (`META-INF/query/`). | Query ORM XML rejected: that file is for `<Noun>DetailView`/`<Noun>SummaryView` result set mappings used by query handlers. A scalar `long` count for domain logic doesn't belong there. |
+| Bridge pattern: domain interface method with value objects → JPA default method → `@NativeQuery` with raw params | Preserves domain purity (repository interface uses `HallId`, `Instant`) while satisfying `@NativeQuery`/`@Param` requirements for raw parameter binding. Follows established `save()` default-method pattern. | Direct raw params on domain interface rejected: violates domain type purity. Single JPA method accepting value objects rejected: `@Param` binding doesn't auto-extract embedded value object fields for native queries. |
+| `ShowSchedulingPolicy` as concrete `@Service` (not interface + impl) | The policy has one implementation and lives entirely in the domain. No infrastructure concern remains after the query moves to the repository. An interface adds indirection without value. | Keeping interface + domain impl rejected: unnecessary abstraction for a single domain service with no infrastructure concern. |
+| Method name `countOverlappingShows` | Clearly describes what the repository returns (a count of overlapping shows). Follows domain language. The existing repository naming convention (`findBy<Field>`, `save`, `next<Id>`) covers the three standard operations; this is a justified domain-specific extension. | `existsOverlappingShow` (returns boolean) rejected: the count conveys richer information and matches the existing SQL pattern. `findOverlappingShows` rejected: returns full aggregates unnecessarily. |
+
+---
+
+## Phase 1: Design
+
+### Data Model
+
+No data model changes. The database schema (`show` table) and Flyway migration (`V1_0__show.sql`) remain unchanged. The refactoring only moves where the SQL query is declared and how the result is consumed.
+
+### Interface Changes
+
+#### Domain Layer
+
+**`ShowRepository`** — add one method:
+
+```java
+long countOverlappingShows(HallId hallId, Instant start, Instant end);
+```
+
+Returns the count of existing shows in the given hall whose time range `[scheduledAt, scheduledAt + runtimeMinutes)` overlaps with the interval `[start, end)`.
+
+**`ShowSchedulingPolicy`** — convert from interface to `@Service` class:
+
+```java
+@Service
+public class ShowSchedulingPolicy {
+  private final ShowRepository showRepository;
+
+  public ShowSchedulingPolicy(ShowRepository showRepository) { ... }
+
+  public void ensureNoOverlap(HallId hallId, Instant start, Instant end) {
+    Contract.require(hallId != null);
+    Contract.require(start != null);
+    Contract.require(end != null);
+    long count = showRepository.countOverlappingShows(hallId, start, end);
+    Contract.check(count == 0, ShowException::overlap);
+  }
+}
+```
+
+#### Infrastructure Layer
+
+**`JpaShowRepository`** — add bridge + `@NativeQuery`:
+
+```java
+@Override
+default long countOverlappingShows(final HallId hallId, final Instant start, final Instant end) {
+  return countOverlappingShowsQuery(hallId.value(), start, end);
+}
+
+@NativeQuery(name = "ShowRepository.countOverlappingShows")
+long countOverlappingShowsQuery(@Param("hall_id") String hallId,
+                                @Param("start_time") Instant start,
+                                @Param("end_time") Instant end);
+```
+
+**`META-INF/domain/show.orm.xml`** — add named native query:
+
+```xml
+<named-native-query name="ShowRepository.countOverlappingShows">
+  <query>
+    SELECT COUNT(*)
+    FROM show s
+    WHERE s.hall_id = :hall_id
+      AND s.scheduled_at &lt; :end_time
+      AND DATEADD(MINUTE, s.movie_runtime_minutes, s.scheduled_at) > :start_time
+  </query>
+</named-native-query>
+```
+
+**Delete**: `JpaShowSchedulingPolicy.java`
+
+### Test Plan
+
+1. **`ShowSchedulingPolicyTest`** (new, domain unit test):
+   - `ensureNoOverlapWithNoOverlapShouldNotThrow()` — mock `countOverlappingShows` returns 0
+   - `ensureNoOverlapWithOverlapShouldThrowShowException()` — mock returns > 0, assert `ShowException` thrown
+
+2. **`JpaShowRepositoryTest`** (update, persistence integration test):
+   - `countOverlappingShowsWithOverlapShouldReturnCount()` — persist a show, query overlapping range, assert count > 0
+   - `countOverlappingShowsWithNoOverlapShouldReturnZero()` — persist a show, query non-overlapping range, assert count == 0
+
+3. **`ShowCommandHandlerImplTest`** (update):
+   - Change `@Mock ShowSchedulingPolicy` from interface mock to concrete class mock — Mockito supports this with no code changes beyond removing the `ShowSchedulingPolicy` import if it was previously the interface import path.
+
+### Quickstart
+
+```bash
+# Build and test
+mvn -B package --file pom.xml
+
+# Run scheduling context
+cd scheduling && mvn spring-boot:run -Dspring-boot.run.profiles=default,local
+```
+
+---
+
+## Artifacts Generated
+
+| Artifact | Path | Status |
+|----------|------|--------|
+| Implementation Plan | `specs/002-ai-show-scheduling/plan.md` | Complete |
+| Research | Inline (Phase 0 above) | Complete — no unknowns |
+| Data Model | N/A — no schema changes | N/A |
+| Contracts | N/A — no API changes | N/A |
