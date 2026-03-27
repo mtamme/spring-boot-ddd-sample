@@ -1,4 +1,4 @@
-package com.github.scheduling.infrastructure.agent;
+package com.github.scheduling.infrastructure.agent.show;
 
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
@@ -23,9 +23,9 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class SchedulingAgent {
+public class ShowSchedulingAgent {
 
-  private static final Logger log = LoggerFactory.getLogger(SchedulingAgent.class);
+  private static final Logger log = LoggerFactory.getLogger(ShowSchedulingAgent.class);
   private static final String SYSTEM_PROMPT = """
     You are a cinema scheduling assistant. You help administrators schedule movie shows in cinema halls.
     Use the available tools to look up movies and halls, and to schedule shows.
@@ -40,11 +40,11 @@ public class SchedulingAgent {
   private final HallQueryHandler hallQueryHandler;
   private final MovieQueryHandler movieQueryHandler;
 
-  public SchedulingAgent(@Value("${anthropic.api-key:}") final String apiKey,
-                         final ShowCommandHandler showCommandHandler,
-                         final ShowQueryHandler showQueryHandler,
-                         final HallQueryHandler hallQueryHandler,
-                         final MovieQueryHandler movieQueryHandler) {
+  public ShowSchedulingAgent(@Value("${anthropic.api-key:}") final String apiKey,
+                             final ShowCommandHandler showCommandHandler,
+                             final ShowQueryHandler showQueryHandler,
+                             final HallQueryHandler hallQueryHandler,
+                             final MovieQueryHandler movieQueryHandler) {
     this.client = apiKey.isBlank()
       ? null
       : AnthropicOkHttpClient.builder().apiKey(apiKey).build();
