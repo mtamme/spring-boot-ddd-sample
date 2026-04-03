@@ -1,0 +1,58 @@
+package com.github.scheduling.application.show;
+
+import com.github.scheduling.application.show.command.ScheduleShowCommand;
+import com.github.scheduling.application.show.command.ScheduleShowResult;
+import com.github.scheduling.domain.hall.HallId;
+import com.github.scheduling.domain.hall.HallService;
+import com.github.scheduling.domain.movie.MovieId;
+import com.github.scheduling.domain.movie.MovieService;
+import com.github.scheduling.domain.show.Show;
+import com.github.scheduling.domain.show.ShowRepository;
+import com.github.scheduling.domain.show.ShowSchedulingPolicy;
+import org.springframework.stereotype.Service;
+
+import java.time.Clock;
+import java.time.temporal.ChronoUnit;
+
+@Service
+public class ShowCommandHandlerImpl implements ShowCommandHandler {
+
+  private final ShowRepository showRepository;
+  private final MovieService movieService;
+  private final HallService hallService;
+  private final ShowSchedulingPolicy showSchedulingPolicy;
+  private final Clock clock;
+
+  public ShowCommandHandlerImpl(final ShowRepository showRepository,
+                                final MovieService movieService,
+                                final HallService hallService,
+                                final ShowSchedulingPolicy showSchedulingPolicy,
+                                final Clock clock) {
+    this.showRepository = showRepository;
+    this.movieService = movieService;
+    this.hallService = hallService;
+    this.showSchedulingPolicy = showSchedulingPolicy;
+    this.clock = clock;
+  }
+
+  @Override
+  public ScheduleShowResult scheduleShow(final ScheduleShowCommand command) {
+    final var movie = movieService.getMovie(new MovieId(command.movieId()));
+    final var hall = hallService.getHall(new HallId(command.hallId()));
+    final var end = command.scheduledAt().plus(movie.runtimeMinutes(), ChronoUnit.MINUTES);
+
+    showSchedulingPolicy.ensureNoOverlap(hall.hallId(), command.scheduledAt(), end);
+
+    final var now = clock.instant();
+    final var show = new Show(
+      showRepository.nextShowId(),
+      command.scheduledAt(),
+      movie,
+      hall,
+      now);
+
+    showRepository.save(show);
+
+    return new ScheduleShowResult(show.showId().value());
+  }
+}
