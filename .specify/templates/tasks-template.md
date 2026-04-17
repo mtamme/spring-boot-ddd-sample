@@ -27,23 +27,25 @@ to prove the touched layers and contracts.
 - **Migrations**: `booking/src/main/resources/db/migration`, `seedwork/src/main/resources/seedwork/db/migration/outbox`
 - **OpenAPI contracts**: `booking/src/main/resources/static`, `seedwork/src/main/resources/seedwork/static/outbox`
 
-<!-- 
-  ============================================================================
-  IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
-  
-  The /speckit.tasks command MUST replace these with actual tasks based on:
-  - User stories from spec.md (with their priorities P1, P2, P3...)
-  - Feature requirements from plan.md
-  - Entities from data-model.md
-  - Endpoints from contracts/
-  
-  Tasks MUST be organized by user story so each story can be:
-  - Implemented independently
-  - Tested independently
-  - Delivered as an MVP increment
-  
-  DO NOT keep these sample tasks in the generated tasks.md file.
-  ============================================================================
+<!--
+============================================================================
+IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
+
+The /speckit.tasks command MUST replace these with actual tasks based on:
+
+- User stories from spec.md (with their priorities P1, P2, P3...)
+- Feature requirements from plan.md
+- Entities from data-model.md
+- Endpoints from contracts/
+
+Tasks MUST be organized by user story so each story can be:
+
+- Implemented independently
+- Tested independently
+- Delivered as an MVP increment
+
+DO NOT keep these sample tasks in the generated tasks.md file.
+============================================================================
 -->
 
 ## Phase 1: Setup (Shared Infrastructure)
@@ -174,8 +176,10 @@ Examples of foundational tasks (adjust based on your project):
 ### User Story Dependencies
 
 - **User Story 1 (P1)**: Can start after Foundational (Phase 2) - No dependencies on other stories
-- **User Story 2 (P2)**: Can start after Foundational (Phase 2) - May integrate with US1 but should be independently testable
-- **User Story 3 (P3)**: Can start after Foundational (Phase 2) - May integrate with US1/US2 but should be independently testable
+- **User Story 2 (P2)**: Can start after Foundational (Phase 2) - May integrate with US1 but should be independently
+  testable
+- **User Story 3 (P3)**: Can start after Foundational (Phase 2) - May integrate with US1/US2 but should be independently
+  testable
 
 ### Within Each User Story
 
@@ -234,9 +238,11 @@ With multiple developers:
 
 1. Team completes Setup + Foundational together
 2. Once Foundational is done:
-   - Developer A: User Story 1
-   - Developer B: User Story 2
-   - Developer C: User Story 3
+
+- Developer A: User Story 1
+- Developer B: User Story 2
+- Developer C: User Story 3
+
 3. Stories complete and integrate independently
 
 ---

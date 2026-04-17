@@ -26,7 +26,8 @@
 
 **Why this priority**: [Explain the value and why it has this priority level]
 
-**Independent Test**: [Describe how this can be tested independently - e.g., "Can be fully tested by [specific action] and delivers [specific value]"]
+**Independent Test**: [Describe how this can be tested independently - e.g., "Can be fully tested by [specific action]
+and delivers [specific value]"]
 
 **Acceptance Scenarios**:
 
@@ -85,20 +86,22 @@
 ### Functional Requirements
 
 - **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
+- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]
 - **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
 
 *Example of marking unclear requirements:*
 
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
+- **FR-006**: System MUST authenticate users
+  via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
 ### Architecture & Consistency Constraints *(mandatory)*
 
 - **AC-001**: Identify the module(s) affected by this feature (`booking`, `seedwork`, or both).
-- **AC-002**: State the allowed dependency direction for the touched code and any new types required in `domain`, `application`, `infrastructure`, or `core`.
+- **AC-002**: State the allowed dependency direction for the touched code and any new types required in `domain`,
+  `application`, `infrastructure`, or `core`.
 - **AC-003**: List any OpenAPI, Flyway, ORM mapping, outbox, or generated-interface updates required by the feature.
 - **AC-004**: Describe how the feature preserves domain invariants, explicit query paths, and bounded result sets.
 
@@ -127,4 +130,5 @@
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
 
-- Include at least one success criterion for response time, throughput, or data-volume safety when the feature changes synchronous APIs, queries, or persistence behavior.
+- Include at least one success criterion for response time, throughput, or data-volume safety when the feature changes
+  synchronous APIs, queries, or persistence behavior.

@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: scheduling
+  flyway:
+    table: schema_history
+    locations:
+      - classpath:db/migration
+      - classpath:seedwork/db/migration/outbox
+  jpa:
+    hibernate:
+      ddl-auto: none
+    mapping-resources:
+      - META-INF/domain/show.orm.xml
+      - META-INF/query/show.orm.xml
+      - seedwork/META-INF/domain/super-types.orm.xml
+      - seedwork/META-INF/outbox.orm.xml
+    open-in-view: false
+  web:
+    resources:
+      static-locations:
+        - classpath:/static
+        - classpath:/seedwork/static/outbox
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+outbox:
+  enabled: true

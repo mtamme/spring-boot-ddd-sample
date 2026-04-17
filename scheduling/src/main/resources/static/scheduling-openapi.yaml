@@ -1,0 +1,207 @@
+openapi: 3.1.0
+
+info:
+  title: Scheduling API
+  version: 1.0.0
+  description: AI-powered show scheduling bounded context
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Show
+    description: Show scheduling and querying
+  - name: Agent
+    description: AI scheduling agent interaction
+
+paths:
+  /shows/{show_id}:
+    get:
+      tags: [ Show ]
+      operationId: getShow
+      summary: Get show details
+      parameters:
+        - $ref: '#/components/parameters/ShowId'
+      responses:
+        '200':
+          description: Show details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShowDetailResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Show not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /shows:
+    get:
+      tags: [ Show ]
+      operationId: listShows
+      summary: List scheduled shows
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated list of shows
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListShowsResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /scheduling/agent/messages:
+    post:
+      tags: [ Agent ]
+      operationId: sendAgentMessage
+      summary: Send a natural-language message to the AI scheduling agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentMessageRequest'
+      responses:
+        '201':
+          description: Agent message created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMessageResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+components:
+  parameters:
+    ShowId:
+      name: show_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: 'S0[0-9A-F]{16}'
+
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        format: int64
+        minimum: 0
+        default: 0
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 10
+
+  schemas:
+    ShowDetailResponse:
+      type: object
+      required:
+        - showId
+        - scheduledAt
+        - movieId
+        - movieTitle
+        - movieRuntimeMinutes
+        - hallId
+        - hallName
+        - hallSeatCount
+      properties:
+        showId:
+          type: string
+          pattern: 'S0[0-9A-F]{16}'
+        scheduledAt:
+          type: string
+          format: date-time
+        movieId:
+          type: string
+          pattern: 'M0[0-9A-F]{16}'
+        movieTitle:
+          type: string
+        movieRuntimeMinutes:
+          type: integer
+        hallId:
+          type: string
+          pattern: 'H0[0-9A-F]{16}'
+        hallName:
+          type: string
+        hallSeatCount:
+          type: integer
+
+    ShowSummaryResponse:
+      type: object
+      required:
+        - showId
+        - scheduledAt
+        - movieTitle
+        - hallName
+      properties:
+        showId:
+          type: string
+          pattern: 'S0[0-9A-F]{16}'
+        scheduledAt:
+          type: string
+          format: date-time
+        movieTitle:
+          type: string
+        hallName:
+          type: string
+
+    ListShowsResponse:
+      type: object
+      required:
+        - shows
+      properties:
+        shows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShowSummaryResponse'
+
+    AgentMessageRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+
+    AgentMessageResponse:
+      type: object
+      required:
+        - response
+      properties:
+        response:
+          type: string
+
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
